@@ -98,7 +98,6 @@ export default function HomePage() {
   const [selectedObraId, setSelectedObraId] = useState<string>('obr-1');
   const [activeTabDetail, setActiveTabDetail] = useState<'timeline' | 'visitas' | 'fotos' | 'documentos'>('timeline');
   const [activeView, setActiveView] = useState<'mapa' | 'listado'>('mapa');
-  const [desktopRightView, setDesktopRightView] = useState<'expediente' | 'listado'>('expediente');
 
   // Estados específicos para interacción Móvil Depurada (Mobile-First)
   const [mobileSheetDismissed, setMobileSheetDismissed] = useState(false);
@@ -973,200 +972,170 @@ export default function HomePage() {
         </div>
 
         {/* ============================================================== */}
-        {/* VISTA ESCRITORIO (lg:grid): MAPA PROTAGONISTA (50%) Y EXPEDIENTE (50%) */}
+        {/* VISTA ESCRITORIO (lg:grid): 3 PARTES SIMULTÁNEAS               */}
+        {/* 1. Izquierda Superior: Mapa interactivo                        */}
+        {/* 2. Derecha: Flujo e histórico de la línea temporal (Timeline)  */}
+        {/* 3. Izquierda Inferior: Lista de obras disponibles o filtradas  */}
         {/* ============================================================== */}
         <div className="hidden lg:grid grid-cols-12 gap-4 max-w-7xl w-full mx-auto px-6 py-2 flex-1 min-h-0">
           
-          {/* COLUMNA IZQUIERDA: Mapa Protagonista a Pantalla Completa (col-span-6) */}
-          <div className="col-span-6 flex flex-col min-h-0 relative rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-slate-900">
+          {/* COLUMNA IZQUIERDA (col-span-6): DIVIDIDA EN 2 PARTES VERTICALES */}
+          <div className="col-span-6 flex flex-col gap-3 min-h-0">
             
-            {/* Barra de Filtros Flotante Sobre el Mapa en PC */}
-            <div className="absolute top-3 left-3 right-16 z-30 pointer-events-auto">
-              <div className="bg-white/95 backdrop-blur-md rounded-2xl p-1.5 shadow-lg border border-slate-200/90 flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar obra, municipio..."
-                    className="w-full pl-8 pr-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
-                  />
-                  {searchTerm && (
-                    <button
-                      onClick={() => setSearchTerm('')}
-                      className="absolute right-2 top-1.5 p-0.5 text-slate-400"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
+            {/* 1. IZQUIERDA SUPERIOR: MAPA INTERACTIVO */}
+            <div className="flex-[5] min-h-[280px] relative rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-slate-900 flex flex-col">
+              {/* Barra de Filtros Flotante Sobre el Mapa en PC */}
+              <div className="absolute top-2.5 left-2.5 right-14 z-30 pointer-events-auto">
+                <div className="bg-white/95 backdrop-blur-md rounded-2xl p-1.5 shadow-lg border border-slate-200/90 flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Buscar obra, municipio..."
+                      className="w-full pl-8 pr-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-2 top-1.5 p-0.5 text-slate-400"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
 
-                <select
-                  value={estadoFilter}
-                  onChange={(e) => setEstadoFilter(e.target.value)}
-                  className="text-xs bg-slate-50 border border-slate-200 rounded-xl py-1 px-2 text-slate-700 font-semibold"
-                >
-                  <option value="TODOS">Todas ({activeObras.length})</option>
-                  <option value="EN_EJECUCION">En Ejecución</option>
-                  <option value="PLANIFICACION">Planificación</option>
-                  <option value="PARALIZADA">Paralizada</option>
-                  <option value="FINALIZADA">Finalizada</option>
-                </select>
+                  <select
+                    value={estadoFilter}
+                    onChange={(e) => setEstadoFilter(e.target.value)}
+                    className="text-xs bg-slate-50 border border-slate-200 rounded-xl py-1 px-2 text-slate-700 font-semibold"
+                  >
+                    <option value="TODOS">Todas ({activeObras.length})</option>
+                    <option value="EN_EJECUCION">En Ejecución</option>
+                    <option value="PLANIFICACION">Planificación</option>
+                    <option value="PARALIZADA">Paralizada</option>
+                    <option value="FINALIZADA">Finalizada</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Mapa */}
+              <div className="w-full h-full flex-1">
+                <MapView
+                  obras={activeObras}
+                  fotos={selectedFotos}
+                  selectedObraId={selectedObra?.id || null}
+                  onSelectObra={handleSelectObra}
+                  userRole={currentRole}
+                  topOffsetClassName="top-12"
+                />
               </div>
             </div>
 
-            {/* Mapa Interactivo con Altura Completa */}
-            <div className="w-full h-full flex-1">
-              <MapView
-                obras={activeObras}
-                fotos={selectedFotos}
-                selectedObraId={selectedObra?.id || null}
-                onSelectObra={handleSelectObra}
-                userRole={currentRole}
-                topOffsetClassName="top-14"
-              />
-            </div>
-          </div>
-
-          {/* COLUMNA DERECHA: Expediente / Listado de Obras (col-span-6) */}
-          <div className="col-span-6 flex flex-col min-h-0">
-            <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex-1 flex flex-col min-h-0 space-y-3 overflow-hidden">
-              
-              {/* Barra superior de alternancia en PC: Expediente vs Listado */}
-              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-200 shrink-0">
-                <div className="flex items-center bg-slate-100 p-1 rounded-xl">
-                  <button
-                    onClick={() => setDesktopRightView('expediente')}
-                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-smooth flex items-center gap-1.5 ${
-                      desktopRightView === 'expediente'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    <FolderOpen className="w-3.5 h-3.5 text-sky-600" />
-                    <span>Expediente</span>
-                  </button>
-
-                  <button
-                    onClick={() => setDesktopRightView('listado')}
-                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-smooth flex items-center gap-1.5 ${
-                      desktopRightView === 'listado'
-                        ? 'bg-white text-slate-900 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-900'
-                    }`}
-                  >
-                    <Layers className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Lista ({activeObras.length})</span>
-                  </button>
+            {/* 3. IZQUIERDA INFERIOR (DEBAJO DEL MAPA): LISTA DE OBRAS DISPONIBLES O FILTRADAS */}
+            <div className="flex-[4] min-h-[220px] bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col min-h-0 overflow-hidden">
+              {/* Cabecera del panel de obras */}
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <Layers className="w-3.5 h-3.5" />
+                  </div>
+                  <h3 className="text-xs font-bold text-slate-900">
+                    Obras Disponibles <span className="text-indigo-600 font-semibold">({activeObras.length})</span>
+                  </h3>
                 </div>
-
-                {/* Selector rápido directo de obras */}
-                <select
-                  value={selectedObraId}
-                  onChange={(e) => {
-                    setSelectedObraId(e.target.value);
-                    setDesktopRightView('expediente');
-                  }}
-                  className="text-xs bg-slate-50 border border-slate-200 rounded-xl py-1 px-2.5 font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 max-w-[210px] truncate"
-                  title="Cambiar de obra"
-                >
-                  {activeObras.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.codigo} — {o.titulo}
-                    </option>
-                  ))}
-                </select>
+                <span className="text-[10px] text-slate-400 font-medium">Clic para seleccionar</span>
               </div>
 
-              {/* Vista A: Listado completo de obras */}
-              {desktopRightView === 'listado' && (
-                <div className="space-y-2 overflow-y-auto flex-1 pr-1">
-                  {activeObras.length === 0 ? (
-                    <div className="py-12 text-center text-slate-400 text-xs">
-                      No se encontraron obras con el filtro actual.
-                    </div>
-                  ) : (
-                    activeObras.map((obra) => {
-                      const isSelected = obra.id === selectedObra?.id;
-                      return (
-                        <div
-                          key={obra.id}
-                          onClick={() => {
-                            setSelectedObraId(obra.id);
-                            setDesktopRightView('expediente');
-                          }}
-                          className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${
-                            isSelected
-                              ? 'bg-sky-50 border-sky-400 shadow-xs ring-1 ring-sky-400/30'
-                              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
+              {/* Lista con scroll vertical */}
+              <div className="space-y-1.5 overflow-y-auto flex-1 pr-1 pt-2">
+                {activeObras.length === 0 ? (
+                  <div className="py-8 text-center text-slate-400 text-xs">
+                    No se encontraron obras con el filtro actual.
+                  </div>
+                ) : (
+                  activeObras.map((obra) => {
+                    const isSelected = obra.id === selectedObra?.id;
+                    return (
+                      <div
+                        key={obra.id}
+                        onClick={() => handleSelectObra(obra.id)}
+                        className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                          isSelected
+                            ? 'bg-sky-50/90 border-sky-500 shadow-xs ring-1 ring-sky-400/40'
+                            : 'bg-slate-50/70 border-slate-200 hover:border-slate-300 hover:bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-0.5">
+                          <div className="flex items-center gap-1.5">
                             <span className="font-mono text-[10px] font-bold text-sky-700 bg-sky-100/70 px-1.5 py-0.5 rounded">
                               {obra.codigo}
                             </span>
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                              obra.estado === 'EN_EJECUCION' ? 'bg-emerald-100 text-emerald-800' :
-                              obra.estado === 'PLANIFICACION' ? 'bg-sky-100 text-sky-800' :
-                              obra.estado === 'PARALIZADA' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
-                            }`}>
-                              {obra.estado.replace('_', ' ')}
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              {obra.municipio}
                             </span>
                           </div>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                            obra.estado === 'EN_EJECUCION' ? 'bg-emerald-100 text-emerald-800' :
+                            obra.estado === 'PLANIFICACION' ? 'bg-sky-100 text-sky-800' :
+                            obra.estado === 'PARALIZADA' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {obra.estado.replace('_', ' ')}
+                          </span>
+                        </div>
 
-                          <h4 className="font-bold text-slate-900 line-clamp-1">{obra.titulo}</h4>
-                          <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
-                            <MapPin className="w-3 h-3 text-slate-400" />
-                            <span>{obra.municipio} • {obra.lineaProductoPrincipal}</span>
-                          </p>
+                        <h4 className="font-bold text-slate-900 line-clamp-1 text-xs">{obra.titulo}</h4>
 
-                          <div className="text-[10px] text-indigo-700 font-medium mt-1">
-                            Responsable: {obra.responsableNombre}
-                          </div>
-
-                          <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-100">
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
+                          <span>Resp: <strong className="text-slate-700">{obra.responsableNombre}</strong></span>
+                          <div className="flex items-center gap-2">
                             <span>Avance: <strong>{obra.porcentajeAvance}%</strong></span>
                             {permisos.verDatosEconomicos ? (
-                              <span className="text-emerald-700 font-semibold">{formatCurrency(obra.presupuestoAdjudicacion)}</span>
+                              <span className="font-bold text-emerald-700">{formatCurrency(obra.presupuestoAdjudicacion)}</span>
                             ) : (
                               <span className="text-slate-400 italic">Económico privado</span>
                             )}
                           </div>
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-
-              {/* Vista B: Expediente Técnico de la Obra Seleccionada */}
-              {desktopRightView === 'expediente' && (
-                selectedObra ? (
-                  <div className="flex-1 flex flex-col min-h-0 space-y-3 overflow-hidden">
-                    {/* Cabecera */}
-                    <div className="flex items-start justify-between flex-wrap gap-2 pb-3 border-b border-slate-200 shrink-0">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
-                            {selectedObra.codigo}
-                          </span>
-                          <span className="text-xs text-slate-500 font-medium">
-                            {selectedObra.municipio} ({selectedObra.provincia})
-                          </span>
-                        </div>
-
-                        <h2 className="text-base font-bold text-slate-900">{selectedObra.titulo}</h2>
-                        <p className="text-xs text-slate-600 mt-0.5 max-w-xl line-clamp-2">
-                          {selectedObra.descripcion}
-                        </p>
                       </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* COLUMNA DERECHA (col-span-6): 2. DERECHA — FLUJO E HISTÓRICO DE LA LÍNEA TEMPORAL Y EXPEDIENTE */}
+          <div className="col-span-6 flex flex-col min-h-0">
+            {selectedObra ? (
+              <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex-1 flex flex-col min-h-0 space-y-3 overflow-hidden">
+                
+                {/* Cabecera del expediente */}
+                <div className="flex items-start justify-between flex-wrap gap-2 pb-3 border-b border-slate-200 shrink-0">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+                        {selectedObra.codigo}
+                      </span>
+                      <span className="text-xs text-slate-500 font-medium">
+                        {selectedObra.municipio} ({selectedObra.provincia})
+                      </span>
+                    </div>
+
+                    <h2 className="text-base font-bold text-slate-900">{selectedObra.titulo}</h2>
+                    <p className="text-xs text-slate-600 mt-0.5 max-w-xl line-clamp-2">
+                      {selectedObra.descripcion}
+                    </p>
+                  </div>
 
                   <div className="flex items-center gap-2">
                     {permisos.exportarDossier && (
                       <button
                         onClick={() => setShowDossierModal(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition-smooth"
+                        title="Generar Dossier Oficial Formato DIN A4"
                       >
                         <FileDown className="w-3.5 h-3.5" />
                         <span>Exportar Dossier</span>
@@ -1195,7 +1164,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Métricas clave (incluyendo Responsable de la Obra) */}
+                {/* Ficha Resumen de Parámetros */}
                 <div className="grid grid-cols-5 gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs shrink-0">
                   <div>
                     <span className="text-[10px] text-slate-400 block font-semibold">Responsable</span>
@@ -1203,17 +1172,18 @@ export default function HomePage() {
                       {selectedObra.responsableNombre}
                     </strong>
                   </div>
-
                   <div>
                     <span className="text-[10px] text-slate-400 block font-semibold">Línea de Producto</span>
-                    <strong className="text-slate-800 text-[11px] truncate block mt-0.5">{selectedObra.lineaProductoPrincipal}</strong>
+                    <strong className="text-slate-800 text-[11px] truncate block mt-0.5">
+                      {selectedObra.lineaProductoPrincipal}
+                    </strong>
                   </div>
-
                   <div>
                     <span className="text-[10px] text-slate-400 block font-semibold">Tipología</span>
-                    <strong className="text-slate-800 text-[11px] truncate block mt-0.5">{selectedObra.tipoObra}</strong>
+                    <strong className="text-slate-800 text-[11px] truncate block mt-0.5">
+                      {selectedObra.tipoObra}
+                    </strong>
                   </div>
-
                   <div>
                     <span className="text-[10px] text-slate-400 block font-semibold">Avance Físico</span>
                     <div className="flex items-center gap-1.5 mt-1">
@@ -1223,35 +1193,34 @@ export default function HomePage() {
                       <strong className="text-slate-900">{selectedObra.porcentajeAvance}%</strong>
                     </div>
                   </div>
-
                   <div>
                     <span className="text-[10px] text-slate-400 block font-semibold">Presupuesto</span>
-                    {permisos.verDatosEconomicos ? (
-                      <strong className="text-emerald-700 font-bold text-[11px] block mt-0.5">{formatCurrency(selectedObra.presupuestoAdjudicacion)}</strong>
-                    ) : (
-                      <span className="text-amber-600 font-semibold flex items-center gap-1 mt-0.5">
-                        <EyeOff className="w-3 h-3" /> Confidencial
-                      </span>
-                    )}
+                    <strong className="text-emerald-700 font-bold text-[11px] block mt-0.5">
+                      {permisos.verDatosEconomicos ? formatCurrency(selectedObra.presupuestoAdjudicacion) : '•••••••• €'}
+                    </strong>
                   </div>
                 </div>
 
-                {/* Pestañas de detalle */}
+                {/* Pestañas de Navegación del Expediente (Foco Principal en Línea de Tiempo) */}
                 <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto no-scrollbar shrink-0">
                   <button
                     onClick={() => setActiveTabDetail('timeline')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-smooth flex items-center gap-1.5 shrink-0 ${
-                      activeTabDetail === 'timeline' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+                      activeTabDetail === 'timeline'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    <span>Línea de Tiempo ({selectedTimeline.length})</span>
+                    <span>Flujo e Histórico ({selectedTimeline.length})</span>
                   </button>
 
                   <button
                     onClick={() => setActiveTabDetail('visitas')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-smooth flex items-center gap-1.5 shrink-0 ${
-                      activeTabDetail === 'visitas' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+                      activeTabDetail === 'visitas'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5" />
@@ -1261,7 +1230,9 @@ export default function HomePage() {
                   <button
                     onClick={() => setActiveTabDetail('fotos')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-smooth flex items-center gap-1.5 shrink-0 ${
-                      activeTabDetail === 'fotos' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+                      activeTabDetail === 'fotos'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     <Camera className="w-3.5 h-3.5" />
@@ -1271,7 +1242,9 @@ export default function HomePage() {
                   <button
                     onClick={() => setActiveTabDetail('documentos')}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-smooth flex items-center gap-1.5 shrink-0 ${
-                      activeTabDetail === 'documentos' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+                      activeTabDetail === 'documentos'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     <FolderOpen className="w-3.5 h-3.5" />
@@ -1279,13 +1252,13 @@ export default function HomePage() {
                   </button>
                 </div>
 
-                {/* Contenido Dinámico de la Pestaña */}
+                {/* Contenido del Expediente */}
                 <div className="flex-1 overflow-y-auto min-h-0 pr-1">
                   {activeTabDetail === 'timeline' && (
                     <TimelineFeed
                       events={selectedTimeline}
                       userRole={currentRole}
-                      onOpenVisita={() => setActiveTabDetail('visitas')}
+                      onSelectEvent={() => {}}
                     />
                   )}
 
@@ -1293,31 +1266,30 @@ export default function HomePage() {
                     <div className="space-y-3">
                       {selectedVisitas.length === 0 ? (
                         <div className="py-12 text-center text-slate-400 text-xs">
-                          No hay visitas registradas aún. Pulsa &quot;Registrar Visita&quot; para crear la primera.
+                          No hay visitas registradas aún. Pulsa &quot;Registrar Visita&quot; para dar de alta la primera.
                         </div>
                       ) : (
                         selectedVisitas.map((v) => (
-                          <div key={v.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <div>
-                                <span className="font-bold text-slate-900 text-sm">{v.tipoVisita}</span>
-                                <span className="text-slate-400 ml-2">({formatDate(v.fechaVisita)} • {v.horaEntrada} - {v.horaSalida})</span>
-                              </div>
-                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full">
-                                GPS Validado a pie de obra
+                          <div key={v.id} className="p-3 bg-white border border-slate-200 rounded-xl space-y-2 text-xs shadow-2xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-900">{v.tipoVisita}</span>
+                              <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded-full">
+                                GPS Validado
                               </span>
                             </div>
-
+                            <div className="text-slate-400 text-[10px]">
+                              {formatDate(v.fechaVisita)} • {v.horaEntrada} - {v.horaSalida}
+                            </div>
                             <p className="text-slate-700 font-semibold">{v.tituloResumen}</p>
-                            <p className="text-slate-600 italic">{v.conclusiones}</p>
+                            <p className="text-slate-600 italic text-[11px]">{v.conclusiones}</p>
 
                             {v.checklist && v.checklist.length > 0 && (
-                              <div className="mt-2 pt-2 border-t border-slate-200">
-                                <span className="font-bold text-[11px] text-slate-700 block mb-1">Checklist Técnico:</span>
-                                <div className="grid grid-cols-2 gap-1.5">
+                              <div className="mt-2 pt-2 border-t border-slate-100">
+                                <span className="font-bold text-[10px] text-slate-700 block mb-1">Checklist Técnico:</span>
+                                <div className="grid grid-cols-1 gap-1">
                                   {v.checklist.map((item) => (
-                                    <div key={item.id} className="flex items-center gap-1.5 text-[11px] text-slate-600">
-                                      <CheckCircle2 className={`w-3.5 h-3.5 ${item.conforme ? 'text-emerald-600' : 'text-rose-600'}`} />
+                                    <div key={item.id} className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                                      <CheckCircle2 className={`w-3 h-3 ${item.conforme ? 'text-emerald-600' : 'text-rose-600'}`} />
                                       <span>{item.pregunta}</span>
                                     </div>
                                   ))}
@@ -1325,10 +1297,15 @@ export default function HomePage() {
                               </div>
                             )}
 
-                            <div className="text-[10px] text-slate-500 pt-1.5 border-t border-slate-200 flex items-center justify-between flex-wrap gap-1">
-                              <span>👷 Visita realizada por: <strong className="text-slate-800">{v.tecnicoNombre}</strong></span>
-                              <span className="text-sky-700 font-medium">Línea: {v.lineaProducto}</span>
-                              <span className="text-slate-400">📝 Registrado por: <strong className="text-slate-700">{v.registradoPorNombre || v.tecnicoNombre}</strong> {v.registradoEn ? `el ${formatDate(v.registradoEn)}` : ''}</span>
+                            {/* Trazabilidad de Compañero y Registro */}
+                            <div className="text-[10px] text-slate-500 pt-1.5 border-t border-slate-100 flex flex-col gap-0.5">
+                              <div className="flex items-center justify-between">
+                                <span>👷 Visita: <strong className="text-slate-800">{v.tecnicoNombre}</strong></span>
+                                <span className="text-sky-700 font-medium">{v.lineaProducto}</span>
+                              </div>
+                              <div className="text-[9px] text-slate-400">
+                                Registrado por: <strong>{v.registradoPorNombre || v.tecnicoNombre}</strong> {v.registradoEn ? `el ${formatDate(v.registradoEn)}` : ''}
+                              </div>
                             </div>
                           </div>
                         ))
@@ -1357,17 +1334,15 @@ export default function HomePage() {
                       currentUserNombre={currentUser?.name || 'Técnico'}
                     />
                   )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-12 text-center text-slate-400 flex-1 flex flex-col items-center justify-center">
-                    <Building2 className="w-12 h-12 text-slate-300 mb-2" />
-                    <p className="text-sm font-semibold text-slate-600">Selecciona una obra para ver su ficha completa</p>
-                  </div>
-                )
-              )}
+                </div>
 
-            </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-200 flex-1 flex flex-col items-center justify-center">
+                <Building2 className="w-12 h-12 text-slate-300 mb-2" />
+                <p className="text-sm font-semibold text-slate-600">Selecciona una obra de la lista para ver su expediente</p>
+              </div>
+            )}
           </div>
 
         </div>
@@ -1563,14 +1538,6 @@ export default function HomePage() {
           >
             <Home className="w-3.5 h-3.5 text-sky-400" />
             <span>Inicio (Mapa)</span>
-          </button>
-          <button
-            onClick={() => setDesktopRightView(desktopRightView === 'listado' ? 'expediente' : 'listado')}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 transition-smooth"
-            title="Alternar entre expediente y listado de obras"
-          >
-            <Layers className="w-3.5 h-3.5 text-indigo-400" />
-            <span>{desktopRightView === 'listado' ? 'Ver Expediente' : 'Ver Listado'}</span>
           </button>
           <button
             onClick={() => handleOpenTaxonomias('TIPO_VISITA')}
