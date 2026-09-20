@@ -79,17 +79,22 @@ export default function HomePage() {
   const [users, setUsers] = useState<User[]>(USUARIOS_MOCK);
   const [permisosRoles, setPermisosRoles] = useState<Record<UserRole, PermisosRol>>(PERMISOS_POR_ROL);
 
-  // Sesión y Autenticación de Usuario
+  // Sesión y Autenticación de Usuario (Único usuario por defecto: David Pérez)
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('geobras_user_session');
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.name === 'David Pérez') {
+            return parsed;
+          } else {
+            localStorage.removeItem('geobras_user_session');
+          }
         } catch {}
       }
     }
-    return USUARIOS_MOCK[0]; // Laura Gómez (Directora - ADMIN) por defecto
+    return USUARIOS_MOCK[0]; // David Pérez (ADMIN) por defecto
   });
   // Pantalla de inicio obligatoria por defecto al cargar la app
   const [showLoginModal, setShowLoginModal] = useState(true);

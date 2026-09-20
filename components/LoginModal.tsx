@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User } from '@/types';
-import { Building2, Shield, Lock, ArrowRight, UserCheck, AlertCircle, X } from 'lucide-react';
+import { Building2, Lock, ArrowRight, AlertCircle, X } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -35,22 +35,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Usuarios iniciales que no requieren contraseña
-  const directUsers = users.filter((u) => !u.requiresPassword);
-  // Usuarios nuevos que sí requieren contraseña
-  const passwordUsers = users.filter((u) => u.requiresPassword);
-
-  const handleDirectLogin = (user: User) => {
-    setErrorMsg('');
-    onLogin(user);
-  };
-
   const handlePasswordLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
+    const trimmedInput = emailInput.trim().toLowerCase();
+
+    if (!trimmedInput) {
+      setErrorMsg('Por favor, introduce tu correo electrónico.');
+      return;
+    }
+
+    // Buscar por correo o coincidencia de nombre
     const targetUser = users.find(
-      (u) => u.email.toLowerCase() === emailInput.trim().toLowerCase()
+      (u) => 
+        u.email.toLowerCase() === trimmedInput || 
+        u.name.toLowerCase() === trimmedInput ||
+        u.name.toLowerCase().includes(trimmedInput)
     );
 
     if (!targetUser) {
@@ -60,7 +61,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
     if (targetUser.requiresPassword) {
       if (!passwordInput) {
-        setErrorMsg('Por favor, introduce tu contraseña.');
+        setErrorMsg('Este usuario requiere contraseña. Por favor, introdúcela.');
         return;
       }
       if (targetUser.password !== passwordInput) {
@@ -81,7 +82,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto select-none"
     >
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden my-auto animate-in fade-in zoom-in-95">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden my-auto animate-in fade-in zoom-in-95">
         
         {/* Cabecera de bienvenida */}
         <div className="px-6 py-6 bg-slate-900 text-white text-center border-b border-slate-800 relative">
@@ -105,94 +106,33 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <p className="text-[11px] text-slate-400 mt-1">Identifícate para acceder al panel de control</p>
         </div>
 
-        <div className="p-5 sm:p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+        <div className="p-5 sm:p-6 space-y-4">
           
-          {/* SECCIÓN 1: Usuarios existentes (Acceso Rápido Sin Contraseña) */}
-          {directUsers.length > 0 && (
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <UserCheck className="w-4 h-4 text-sky-600" />
-                  <span>Equipo Actual (Acceso 1-Clic)</span>
-                </span>
-                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                  Sin contraseña
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2">
-                {directUsers.map((u) => {
-                  let roleBadgeColor = 'bg-slate-100 text-slate-700';
-                  if (u.role === 'ADMIN') roleBadgeColor = 'bg-purple-100 text-purple-800 border-purple-200';
-                  if (u.role === 'JEFE_OBRA') roleBadgeColor = 'bg-sky-100 text-sky-800 border-sky-200';
-                  if (u.role === 'TECNICO_CAMPO') roleBadgeColor = 'bg-amber-100 text-amber-800 border-amber-200';
-                  if (u.role === 'CONSULTOR_EXTERNO') roleBadgeColor = 'bg-slate-100 text-slate-800 border-slate-200';
-
-                  return (
-                    <button
-                      key={u.id}
-                      onClick={() => handleDirectLogin(u)}
-                      type="button"
-                      className="w-full p-3 rounded-2xl border border-slate-200 hover:border-sky-500 hover:bg-sky-50/50 bg-white flex items-center justify-between text-left transition-all active:scale-98 group shadow-2xs"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
-                          {u.avatar}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="font-bold text-slate-900 text-xs truncate group-hover:text-sky-700">
-                            {u.name}
-                          </div>
-                          <div className="text-[11px] text-slate-400 font-mono truncate">
-                            {u.email}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${roleBadgeColor}`}>
-                          {u.role.replace('_', ' ')}
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-sky-600 transition-transform group-hover:translate-x-0.5" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Separador */}
-          <div className="relative flex py-1 items-center">
-            <div className="flex-grow border-t border-slate-200"></div>
-            <span className="flex-shrink mx-3 text-[11px] font-bold text-slate-400 uppercase">
-              O con correo y contraseña
-            </span>
-            <div className="flex-grow border-t border-slate-200"></div>
-          </div>
-
-          {/* SECCIÓN 2: Formulario de Login para Nuevos Usuarios con Contraseña */}
-          <form onSubmit={handlePasswordLoginSubmit} className="space-y-3">
+          {/* Formulario de Login */}
+          <form onSubmit={handlePasswordLoginSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
                 Correo Electrónico
               </label>
               <input
                 type="email"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="tu.correo@empresa.com"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm font-medium text-slate-800 placeholder-slate-400"
+                placeholder="Introduce tu correo (ej. david.perez@empresa.com)"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm font-medium text-slate-800 placeholder-slate-400 transition-all"
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck="false"
               />
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-1">
+              <div className="flex justify-between items-center mb-1.5">
                 <label className="block text-xs font-bold text-slate-700">
                   Contraseña
                 </label>
                 <span className="text-[10px] text-slate-400">
-                  Obligatoria para nuevos usuarios
+                  (Si tu cuenta la requiere)
                 </span>
               </div>
               <div className="relative">
@@ -201,14 +141,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   placeholder="Introduce tu contraseña"
-                  className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm font-medium text-slate-800 placeholder-slate-400"
+                  className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm font-medium text-slate-800 placeholder-slate-400 transition-all"
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  spellCheck="false"
                 />
                 <Lock className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
 
             {errorMsg && (
-              <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                 <span>{errorMsg}</span>
               </div>
@@ -216,7 +159,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
             <button
               type="submit"
-              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-1.5"
+              className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 active:scale-98 text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
               <span>Acceder al Sistema</span>
               <ArrowRight className="w-4 h-4" />
@@ -225,14 +168,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
           {/* Botón para abandonar o cerrar la ventana */}
           {onClose && (
-            <div className="pt-2 border-t border-slate-200">
+            <div className="pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 hover:text-slate-950 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs border border-slate-200"
+                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 hover:text-slate-900 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-200"
                 title="Abandonar inicio de sesión y acceder al mapa"
               >
-                <X className="w-4 h-4 text-slate-500" />
+                <X className="w-3.5 h-3.5 text-slate-500" />
                 <span>Abandonar / Cerrar ventana (Ir al Mapa)</span>
               </button>
             </div>
