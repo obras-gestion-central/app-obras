@@ -11,6 +11,7 @@ interface MapViewProps {
   fotos: FotoGPS[];
   selectedObraId: string | null;
   onSelectObra: (id: string) => void;
+  onOpenExpediente?: (id: string) => void;
   userRole: UserRole;
   isPickingLocation?: boolean;
   onLocationPicked?: (lat: number, lng: number) => void;
@@ -22,6 +23,7 @@ export const MapView: React.FC<MapViewProps> = ({
   fotos,
   selectedObraId,
   onSelectObra,
+  onOpenExpediente,
   userRole,
   isPickingLocation = false,
   onLocationPicked,
@@ -174,17 +176,23 @@ export const MapView: React.FC<MapViewProps> = ({
 
         const marker = L.marker([obra.lat, obra.lng], { icon: customIcon });
 
-        // En pantallas grandes (>=1024px), mantener un popup descriptivo opcional
+        // Popup descriptivo con enlace al expediente
         const popupContent = document.createElement('div');
-        popupContent.className = 'p-1 text-slate-800 text-xs font-sans min-w-[200px]';
+        popupContent.className = 'p-1 text-slate-800 text-xs font-sans min-w-[210px] select-none';
         popupContent.innerHTML = `
-          <div class="font-bold text-sm text-slate-900 mb-0.5">${obra.titulo}</div>
-          <div class="text-[11px] text-slate-500 font-mono mb-1.5">${obra.codigo} • ${obra.municipio}</div>
-          <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden mb-2">
-            <div class="bg-sky-600 h-1.5 rounded-full" style="width: ${obra.porcentajeAvance}%"></div>
+          <div id="popup-body-${obra.id}" class="cursor-pointer group hover:bg-slate-50 p-1 -m-1 rounded-lg transition-colors mb-2" title="Clic para acceder al expediente">
+            <div class="font-bold text-sm text-slate-900 group-hover:text-sky-600 flex items-center justify-between gap-1 mb-0.5">
+              <span class="truncate">${obra.titulo}</span>
+              <span class="text-[10px] text-sky-600 font-bold shrink-0">Ver →</span>
+            </div>
+            <div class="text-[11px] text-slate-500 font-mono mb-1.5">${obra.codigo} • ${obra.municipio}</div>
+            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+              <div class="bg-sky-600 h-1.5 rounded-full" style="width: ${obra.porcentajeAvance}%"></div>
+            </div>
           </div>
-          <button id="btn-popup-${obra.id}" class="w-full py-1 px-2 bg-sky-600 hover:bg-sky-700 text-white font-medium rounded text-xs text-center transition-colors">
-            Seleccionar Obra
+          <button id="btn-popup-${obra.id}" class="w-full py-1.5 px-2 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white font-bold rounded-lg text-xs text-center transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer" title="Seleccionar obra y abrir su expediente completo">
+            <svg class="w-3.5 h-3.5 fill-none stroke-current" stroke-width="2" viewBox="0 0 24 24"><path d="M6 14l1.5-2.9A2 2 0 019.24 10H20a2 2 0 011.94 2.5l-1.54 6a2 2 0 01-1.95 1.5H4a2 2 0 01-2-2V5a2 2 0 012-2h3.9a2 2 0 011.69.9l.81 1.2a2 2 0 001.67.9H18a2 2 0 012 2v2"/></svg>
+            <span>Seleccionar Obra</span>
           </button>
         `;
 
@@ -193,8 +201,22 @@ export const MapView: React.FC<MapViewProps> = ({
         marker.on('popupopen', () => {
           const btn = document.getElementById(`btn-popup-${obra.id}`);
           if (btn) {
-            btn.onclick = () => {
+            btn.onclick = (e) => {
+              e.stopPropagation();
               onSelectObra(obra.id);
+              if (onOpenExpediente) {
+                onOpenExpediente(obra.id);
+              }
+            };
+          }
+          const body = document.getElementById(`popup-body-${obra.id}`);
+          if (body) {
+            body.onclick = (e) => {
+              e.stopPropagation();
+              onSelectObra(obra.id);
+              if (onOpenExpediente) {
+                onOpenExpediente(obra.id);
+              }
             };
           }
         });

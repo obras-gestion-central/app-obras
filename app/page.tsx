@@ -307,11 +307,19 @@ export default function HomePage() {
   // Obra seleccionada activa
   const selectedObra = activeObras.find((o) => o.id === selectedObraId) || activeObras[0] || null;
 
-  // Selección de obra (abre el bottom sheet táctil si está en móvil o el expediente en PC)
+  // Selección de obra (abre la tarjeta flotante táctil en móvil o actualiza el expediente en PC)
   const handleSelectObra = (id: string) => {
     setSelectedObraId(id);
     setMobileSheetDismissed(false);
-    setDesktopRightView('expediente');
+  };
+
+  // Apertura directa del expediente (para móvil y PC)
+  const handleOpenExpediente = (id?: string) => {
+    if (id) {
+      setSelectedObraId(id);
+    }
+    setMobileSheetDismissed(false);
+    setMobileExpedienteOpen(true);
   };
 
   // Elementos eliminados (Papelera)
@@ -663,6 +671,7 @@ export default function HomePage() {
                 fotos={selectedFotos}
                 selectedObraId={selectedObra?.id || null}
                 onSelectObra={handleSelectObra}
+                onOpenExpediente={handleOpenExpediente}
                 userRole={currentRole}
                 topOffsetClassName="top-2.5"
               />
@@ -1027,6 +1036,7 @@ export default function HomePage() {
                   fotos={selectedFotos}
                   selectedObraId={selectedObra?.id || null}
                   onSelectObra={handleSelectObra}
+                  onOpenExpediente={handleOpenExpediente}
                   userRole={currentRole}
                   topOffsetClassName="top-12"
                 />
@@ -1356,9 +1366,13 @@ export default function HomePage() {
       {selectedObra && !mobileSheetDismissed && activeView === 'mapa' && !mobileExpedienteOpen && (
         <div className="lg:hidden fixed bottom-[68px] left-3 right-3 sm:left-6 sm:right-auto sm:w-[420px] z-50 bg-white rounded-2xl p-4 shadow-2xl border border-slate-200 animate-in slide-in-from-bottom-4 duration-200 select-none pointer-events-auto">
           
-          {/* Tirador y cabecera de la tarjeta */}
+          {/* Tirador y cabecera de la tarjeta (Clic para abrir expediente) */}
           <div className="flex items-start justify-between gap-2 mb-1.5">
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div
+              onClick={() => handleOpenExpediente(selectedObra.id)}
+              className="flex items-center gap-1.5 flex-wrap cursor-pointer flex-1 group"
+              title="Clic para abrir el expediente completo"
+            >
               <span className="font-mono text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">
                 {selectedObra.codigo}
               </span>
@@ -1376,7 +1390,10 @@ export default function HomePage() {
             </div>
 
             <button
-              onClick={() => setMobileSheetDismissed(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMobileSheetDismissed(true);
+              }}
               className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
               title="Cerrar tarjeta flotante"
             >
@@ -1384,43 +1401,55 @@ export default function HomePage() {
             </button>
           </div>
 
-          {/* Título de la obra */}
-          <h3 className="font-bold text-slate-900 text-xs line-clamp-1 mb-1">
-            {selectedObra.titulo}
-          </h3>
-
-          {/* Responsable de la obra */}
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1.5">
-            <UserIcon className="w-3 h-3 text-indigo-600 shrink-0" />
-            <span>Responsable: <strong className="text-slate-800">{selectedObra.responsableNombre}</strong></span>
-          </div>
-
-          {/* Barra de progreso y presupuesto */}
-          <div className="flex items-center justify-between text-[10px] text-slate-500 mb-2.5">
-            <div className="flex items-center gap-1.5 flex-1 mr-3">
-              <div className="flex-1 bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-sky-600 h-1.5 rounded-full" style={{ width: `${selectedObra.porcentajeAvance}%` }}></div>
-              </div>
-              <span className="font-bold text-slate-700">{selectedObra.porcentajeAvance}%</span>
+          {/* Cuerpo clickeable de la tarjeta: abre directamente el expediente */}
+          <div
+            onClick={() => handleOpenExpediente(selectedObra.id)}
+            className="cursor-pointer group hover:bg-slate-50/80 active:bg-slate-100 -mx-1.5 px-1.5 py-1 rounded-xl transition-colors"
+            title="Toca para abrir el expediente de la obra"
+          >
+            {/* Título de la obra */}
+            <div className="flex items-center justify-between gap-1 mb-1">
+              <h3 className="font-bold text-slate-900 text-xs line-clamp-1 group-hover:text-sky-700 transition-colors">
+                {selectedObra.titulo}
+              </h3>
+              <span className="text-[10px] text-sky-600 font-bold shrink-0 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
+                Expediente →
+              </span>
             </div>
 
-            <div>
-              {permisos.verDatosEconomicos ? (
-                <span className="font-bold text-emerald-700">{formatCurrency(selectedObra.presupuestoAdjudicacion)}</span>
-              ) : (
-                <span className="text-slate-400 italic">Económico privado</span>
-              )}
+            {/* Responsable de la obra */}
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1.5">
+              <UserIcon className="w-3 h-3 text-indigo-600 shrink-0" />
+              <span>Responsable: <strong className="text-slate-800">{selectedObra.responsableNombre}</strong></span>
+            </div>
+
+            {/* Barra de progreso y presupuesto */}
+            <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+              <div className="flex items-center gap-1.5 flex-1 mr-3">
+                <div className="flex-1 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-sky-600 h-1.5 rounded-full" style={{ width: `${selectedObra.porcentajeAvance}%` }}></div>
+                </div>
+                <span className="font-bold text-slate-700">{selectedObra.porcentajeAvance}%</span>
+              </div>
+
+              <div>
+                {permisos.verDatosEconomicos ? (
+                  <span className="font-bold text-emerald-700">{formatCurrency(selectedObra.presupuestoAdjudicacion)}</span>
+                ) : (
+                  <span className="text-slate-400 italic">Económico privado</span>
+                )}
+              </div>
             </div>
           </div>
 
           {/* Botones de Acción Directa (Acceso en 1 clic asegurado) */}
-          <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100">
+          <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 mt-1">
             <button
-              onClick={() => setMobileExpedienteOpen(true)}
+              onClick={() => handleOpenExpediente(selectedObra.id)}
               className="col-span-1 py-2 px-2 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm transition-transform"
               title="Abrir expediente completo de la obra"
             >
-              <FolderOpen className="w-3.5 h-3.5" />
+              <FolderOpen className="w-3.5 h-3.5 text-sky-400" />
               <span>Expediente</span>
             </button>
 
