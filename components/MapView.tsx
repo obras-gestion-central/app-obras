@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Obra, FotoGPS, UserRole } from '@/types';
 import { PERMISOS_POR_ROL } from '@/data/mockData';
 import { formatCurrency } from '@/lib/utils';
-import { Layers, MapPin, Camera, Maximize2, Compass } from 'lucide-react';
+import { Layers, Camera, Maximize2, Compass, Info } from 'lucide-react';
 
 interface MapViewProps {
   obras: Obra[];
@@ -14,6 +14,7 @@ interface MapViewProps {
   userRole: UserRole;
   isPickingLocation?: boolean;
   onLocationPicked?: (lat: number, lng: number) => void;
+  topOffsetClassName?: string;
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -24,6 +25,7 @@ export const MapView: React.FC<MapViewProps> = ({
   userRole,
   isPickingLocation = false,
   onLocationPicked,
+  topOffsetClassName = 'top-20 sm:top-4',
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -34,6 +36,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
   const [activeLayer, setActiveLayer] = useState<'street' | 'satellite'>('street');
   const [showPhotoPins, setShowPhotoPins] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
   const [isLeafletReady, setIsLeafletReady] = useState(false);
 
   const permisos = PERMISOS_POR_ROL[userRole];
@@ -68,7 +71,7 @@ export const MapView: React.FC<MapViewProps> = ({
           'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
           {
             maxZoom: 19,
-            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            attribution: 'Tiles &copy; Esri',
           }
         );
 
@@ -76,6 +79,7 @@ export const MapView: React.FC<MapViewProps> = ({
         streetLayerRef.current = streetLayer;
         satelliteLayerRef.current = satelliteLayer;
 
+        // Zoom en esquina inferior derecha para pantallas grandes
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
         const markersLayer = L.layerGroup().addTo(map);
@@ -91,10 +95,28 @@ export const MapView: React.FC<MapViewProps> = ({
 
     initMap();
 
+    // Redimensionar automáticamente si cambia el tamaño de la ventana
+    const handleResize = () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
+
+  // Forzar invalidateSize cuando Leaflet esté listo
+  useEffect(() => {
+    if (isLeafletReady && mapInstanceRef.current) {
+      setTimeout(() => {
+        mapInstanceRef.current?.invalidateSize();
+      }, 200);
+    }
+  }, [isLeafletReady]);
 
   // Cambio de capa Callejero <-> Satélite
   useEffect(() => {
@@ -126,19 +148,19 @@ export const MapView: React.FC<MapViewProps> = ({
 
       validObras.forEach((obra) => {
         // Color según estado
-        let colorClass = 'bg-emerald-600 border-emerald-300';
-        if (obra.estado === 'PLANIFICACION') colorClass = 'bg-sky-600 border-sky-300';
-        if (obra.estado === 'PARALIZADA') colorClass = 'bg-rose-600 border-rose-300';
-        if (obra.estado === 'FINALIZADA') colorClass = 'bg-slate-600 border-slate-300';
+        let colorClass = 'bg-emerald-600 border-emerald-300 shadow-emerald-900/30';
+        if (obra.estado === 'PLANIFICACION') colorClass = 'bg-sky-600 border-sky-300 shadow-sky-900/30';
+        if (obra.estado === 'PARALIZADA') colorClass = 'bg-rose-600 border-rose-300 shadow-rose-900/30';
+        if (obra.estado === 'FINALIZADA') colorClass = 'bg-slate-600 border-slate-300 shadow-slate-900/30';
 
         const isSelected = obra.id === selectedObraId;
 
         const iconHtml = `
-          <div class="relative flex items-center justify-center cursor-pointer transition-transform duration-200 ${isSelected ? 'scale-125 z-50' : 'hover:scale-110'}">
+          <div class="relative flex items-center justify-center cursor-pointer transition-transform duration-200 ${isSelected ? 'scale-125 z-50' : 'hover:scale-110 active:scale-95'}">
             <div class="w-8 h-8 rounded-full ${colorClass} text-white flex items-center justify-center shadow-lg border-2">
               <span class="text-[10px] font-black tracking-tighter">${obra.codigo.split('-')[2] || 'OB'}</span>
             </div>
-            ${isSelected ? '<div class="absolute -inset-1 rounded-full border-2 border-amber-400 animate-ping opacity-75"></div>' : ''}
+            ${isSelected ? '<div class="absolute -inset-1.5 rounded-full border-2 border-amber-400 animate-ping opacity-75"></div>' : ''}
           </div>
         `;
 
@@ -152,31 +174,17 @@ export const MapView: React.FC<MapViewProps> = ({
 
         const marker = L.marker([obra.lat, obra.lng], { icon: customIcon });
 
-        // Contenido del Popup informativo
+        // En pantallas grandes (>=1024px), mantener un popup descriptivo opcional
         const popupContent = document.createElement('div');
-        popupContent.className = 'p-1 text-slate-800 text-xs font-sans min-w-[220px]';
+        popupContent.className = 'p-1 text-slate-800 text-xs font-sans min-w-[200px]';
         popupContent.innerHTML = `
           <div class="font-bold text-sm text-slate-900 mb-0.5">${obra.titulo}</div>
-          <div class="text-[11px] text-slate-500 font-mono mb-2">${obra.codigo} • ${obra.municipio}</div>
-          <div class="mb-2">
-            <div class="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
-              <span>Avance Físico</span>
-              <span>${obra.porcentajeAvance}%</span>
-            </div>
-            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
-              <div class="bg-sky-600 h-1.5 rounded-full" style="width: ${obra.porcentajeAvance}%"></div>
-            </div>
+          <div class="text-[11px] text-slate-500 font-mono mb-1.5">${obra.codigo} • ${obra.municipio}</div>
+          <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden mb-2">
+            <div class="bg-sky-600 h-1.5 rounded-full" style="width: ${obra.porcentajeAvance}%"></div>
           </div>
-          <div class="text-[11px] text-slate-600 mb-1">
-            <strong>Línea:</strong> ${obra.lineaProductoPrincipal}
-          </div>
-          ${
-            permisos.verDatosEconomicos
-              ? `<div class="text-[11px] text-emerald-700 font-semibold mb-2">Presupuesto: ${formatCurrency(obra.presupuestoAdjudicacion)}</div>`
-              : ''
-          }
-          <button id="btn-popup-${obra.id}" class="w-full mt-2 py-1.5 px-3 bg-sky-600 hover:bg-sky-700 text-white font-medium rounded text-xs text-center transition-colors">
-            Ver Ficha Completa
+          <button id="btn-popup-${obra.id}" class="w-full py-1 px-2 bg-sky-600 hover:bg-sky-700 text-white font-medium rounded text-xs text-center transition-colors">
+            Seleccionar Obra
           </button>
         `;
 
@@ -191,6 +199,7 @@ export const MapView: React.FC<MapViewProps> = ({
           }
         });
 
+        // El clic directo en el marcador selecciona la obra inmediatamente (vital para el bottom sheet táctil)
         marker.on('click', () => {
           onSelectObra(obra.id);
         });
@@ -202,7 +211,7 @@ export const MapView: React.FC<MapViewProps> = ({
       if (showPhotoPins) {
         fotos.forEach((foto) => {
           const photoIconHtml = `
-            <div class="w-6 h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-md border border-white hover:scale-125 transition-transform" title="${foto.titulo}">
+            <div class="w-6 h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-md border border-white hover:scale-125 transition-transform cursor-pointer" title="${foto.titulo}">
               <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 9a3 3 0 100 6 3 3 0 000-6zm-7 9a1 1 0 01-1-1V8a1 1 0 011-1h2.268a2 2 0 001.664-.89l.812-1.22A2 2 0 0111.408 4h1.184a2 2 0 011.664.89l.812 1.22A2 2 0 0016.732 7H19a1 1 0 011 1v9a1 1 0 01-1 1H5z"/></svg>
             </div>
           `;
@@ -216,7 +225,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
           const pMarker = L.marker([foto.lat, foto.lng], { icon: photoIcon });
           pMarker.bindPopup(`
-            <div class="text-xs p-1 text-slate-800">
+            <div class="text-xs p-1 text-slate-800 max-w-[200px]">
               <img src="${foto.miniaturaUrl}" class="w-full h-24 object-cover rounded mb-1" />
               <div class="font-bold">${foto.titulo}</div>
               <div class="text-[10px] text-slate-500">Tomada: ${foto.fechaCaptura}</div>
@@ -227,7 +236,7 @@ export const MapView: React.FC<MapViewProps> = ({
         });
       }
 
-      // Si hay una obra seleccionada, centrar mapa en ella
+      // Si hay una obra seleccionada, centrar suavemente en ella
       if (selectedObraId) {
         const selected = validObras.find((o) => o.id === selectedObraId);
         if (selected) {
@@ -251,67 +260,101 @@ export const MapView: React.FC<MapViewProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-inner border border-slate-200 bg-slate-100">
+    <div className="relative w-full h-full overflow-hidden bg-slate-100 select-none">
       {/* Contenedor DOM para Leaflet */}
       <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-      {/* Barra de Controles Flotantes del Mapa */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+      {/* Controles Flotantes del Mapa (En posición lateral derecha, sin tapar el buscador superior) */}
+      <div className={`absolute ${topOffsetClassName} right-3 z-20 flex flex-col gap-1.5`}>
         
-        {/* Selector Callejero / Satélite */}
-        <div className="bg-white/95 backdrop-blur-md rounded-xl p-1 shadow-lg border border-slate-200/80 flex flex-col gap-1">
+        {/* Selector Rápido Callejero / Satélite */}
+        <div className="bg-white/95 backdrop-blur-md rounded-xl p-0.5 shadow-md border border-slate-200/80 flex flex-col gap-0.5">
           <button
             onClick={() => setActiveLayer('street')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-2 transition-smooth ${
+            className={`p-2 rounded-lg flex items-center justify-center transition-smooth ${
               activeLayer === 'street'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-700 hover:bg-slate-100'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
             }`}
+            title="Capa Callejero (OpenStreetMap)"
           >
-            <Compass className="w-3.5 h-3.5" />
-            <span>Callejero OSM</span>
+            <Compass className="w-4 h-4" />
           </button>
 
           <button
             onClick={() => setActiveLayer('satellite')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-2 transition-smooth ${
+            className={`p-2 rounded-lg flex items-center justify-center transition-smooth ${
               activeLayer === 'satellite'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'text-slate-700 hover:bg-slate-100'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 hover:bg-slate-100'
             }`}
+            title="Capa Satélite HD (Esri Gratuito)"
           >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Satélite Esri (Gratis)</span>
+            <Layers className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Alternar Fotos GPS */}
+        {/* Botón Alternar Fotos GPS */}
         <button
           onClick={() => setShowPhotoPins(!showPhotoPins)}
-          className={`p-2 rounded-xl shadow-lg border transition-smooth flex items-center justify-center gap-1.5 text-xs font-semibold ${
+          className={`p-2 rounded-xl shadow-md border transition-smooth flex items-center justify-center ${
             showPhotoPins
-              ? 'bg-amber-500 text-slate-950 border-amber-400'
-              : 'bg-white/95 text-slate-700 hover:bg-slate-100 border-slate-200'
+              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-amber-500/20'
+              : 'bg-white/95 backdrop-blur-md text-slate-600 hover:bg-slate-100 border-slate-200'
           }`}
           title="Mostrar u ocultar fotos georreferenciadas a pie de obra"
         >
           <Camera className="w-4 h-4" />
-          <span className="hidden sm:inline">Fotos GPS</span>
         </button>
 
-        {/* Re-centrar en todas las obras */}
+        {/* Botón Encuadre Total */}
         <button
           onClick={handleCenterAll}
-          className="p-2 bg-white/95 hover:bg-slate-100 text-slate-700 rounded-xl shadow-lg border border-slate-200 transition-smooth flex items-center justify-center gap-1.5 text-xs font-semibold"
-          title="Ajustar vista a todas las obras"
+          className="p-2 bg-white/95 backdrop-blur-md hover:bg-slate-100 text-slate-700 rounded-xl shadow-md border border-slate-200 transition-smooth flex items-center justify-center"
+          title="Centrar y encuadrar todas las obras"
         >
           <Maximize2 className="w-4 h-4" />
-          <span className="hidden sm:inline">Encuadrar</span>
+        </button>
+
+        {/* Botón Leyenda (Móvil) */}
+        <button
+          onClick={() => setShowLegend(!showLegend)}
+          className={`sm:hidden p-2 rounded-xl shadow-md border transition-smooth flex items-center justify-center ${
+            showLegend
+              ? 'bg-slate-800 text-white border-slate-700'
+              : 'bg-white/95 backdrop-blur-md text-slate-600 hover:bg-slate-100 border-slate-200'
+          }`}
+          title="Ver leyenda de colores de obras"
+        >
+          <Info className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Leyenda en la esquina inferior izquierda */}
-      <div className="absolute bottom-4 left-4 z-20 bg-white/90 backdrop-blur-md px-3 py-2 rounded-xl shadow-md border border-slate-200/80 text-[11px] text-slate-600 flex items-center gap-3">
+      {/* Leyenda Inteligente: visible fija en pantallas medianas/grandes, o desplegable en móvil */}
+      {(showLegend || false) && (
+        <div className="sm:hidden absolute top-40 right-3 z-20 bg-slate-900/95 text-white backdrop-blur-md p-3 rounded-xl shadow-xl border border-slate-700 text-[11px] space-y-1.5 animate-in fade-in-50 duration-150">
+          <div className="font-bold text-xs text-sky-400 mb-1 border-b border-slate-700 pb-1">Leyenda</div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span>En Ejecución</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+            <span>Planificación</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+            <span>Paralizada</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            <span>Foto GPS</span>
+          </div>
+        </div>
+      )}
+
+      {/* Leyenda fija en escritorio (esquina inferior izquierda) */}
+      <div className="hidden sm:flex absolute bottom-4 left-4 z-20 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl shadow-md border border-slate-200/80 text-[11px] text-slate-600 items-center gap-3">
         <div className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
           <span>En Ejecución</span>
