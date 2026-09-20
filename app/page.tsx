@@ -50,7 +50,8 @@ import {
   Home,
   LogOut,
   Shield,
-  User as UserIcon
+  User as UserIcon,
+  Tag
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -536,7 +537,7 @@ export default function HomePage() {
   const totalFotos = fotos.filter((f) => !f.isDeleted).length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100 font-sans select-none overflow-hidden pt-14 sm:pt-16 pb-14 sm:pb-0">
+    <div className="min-h-screen flex flex-col bg-slate-100 font-sans select-none overflow-hidden pt-14 sm:pt-16 pb-14 lg:pb-11">
       
       {/* 1. Barra de Navegación Compacta */}
       <Navbar
@@ -605,7 +606,7 @@ export default function HomePage() {
       </div>
 
       {/* 3. Contenedor Principal Adaptativo */}
-      <main className="flex-1 w-full h-[calc(100dvh-112px)] sm:h-[calc(100dvh-64px)] lg:h-[calc(100vh-140px)] flex flex-col relative overflow-hidden">
+      <main className="flex-1 w-full h-[calc(100dvh-112px)] lg:h-[calc(100vh-184px)] flex flex-col relative overflow-hidden">
         
         {/* ============================================================== */}
         {/* VISTA MÓVIL (< lg): MAPA CENTRAL A PANTALLA COMPLETA O LISTADO */}
@@ -669,7 +670,7 @@ export default function HomePage() {
 
               {/* Bottom Sheet Táctil (Tarjeta Resumen Deslizante al Tocar una Obra) */}
               {selectedObra && !mobileSheetDismissed && (
-                <div className="absolute bottom-16 left-2.5 right-2.5 z-30 bg-white/98 backdrop-blur-md rounded-2xl p-3.5 shadow-2xl border border-slate-200/90 animate-in slide-in-from-bottom-5 duration-200">
+                <div className="absolute bottom-16 left-2.5 right-2.5 z-30 bg-white rounded-2xl p-3.5 shadow-2xl border border-slate-200 animate-in slide-in-from-bottom-5 duration-200">
                   
                   {/* Tirador y cabecera de la tarjeta */}
                   <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -1470,14 +1471,15 @@ export default function HomePage() {
       </main>
 
       {/* ============================================================== */}
-      {/* BARRA DE NAVEGACIÓN INFERIOR MÓVIL (Bottom Navigation Bar)     */}
+      {/* BARRA INFERIOR MÓVIL Y TABLET (Fondo Oscuro Sólido Slate-900)  */}
       {/* ============================================================== */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/98 backdrop-blur-md border-t border-slate-800 flex items-center justify-around h-14 select-none px-1 shadow-2xl">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900 text-white border-t border-slate-800 flex items-center justify-around h-14 select-none px-1 shadow-2xl">
         <button
           onClick={handleGoHome}
           className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
             activeView === 'mapa' && !mobileExpedienteOpen ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
           }`}
+          title="Ir al mapa de inicio"
         >
           <Home className="w-4 h-4" />
           <span className="text-[10px] mt-0.5">Inicio</span>
@@ -1491,6 +1493,7 @@ export default function HomePage() {
           className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
             activeView === 'listado' && !mobileExpedienteOpen ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
           }`}
+          title="Ver listado de obras"
         >
           <Layers className="w-4 h-4" />
           <span className="text-[10px] mt-0.5">Obras</span>
@@ -1500,6 +1503,7 @@ export default function HomePage() {
           <button
             onClick={() => setShowNuevaObraModal(true)}
             className="flex flex-col items-center justify-center flex-1 h-full text-white active:scale-95 transition-transform"
+            title="Dar de alta una nueva obra"
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-500/30">
               <Plus className="w-4 h-4 text-white" />
@@ -1508,15 +1512,14 @@ export default function HomePage() {
           </button>
         )}
 
-        {currentRole === 'ADMIN' && (
-          <button
-            onClick={() => setShowAdminRolesModal(true)}
-            className="flex flex-col items-center justify-center flex-1 h-full text-purple-300 hover:text-white transition-colors"
-          >
-            <Shield className="w-4 h-4 text-purple-400" />
-            <span className="text-[10px] mt-0.5">Equipo</span>
-          </button>
-        )}
+        <button
+          onClick={() => handleOpenTaxonomias('TIPO_VISITA')}
+          className="flex flex-col items-center justify-center flex-1 h-full text-slate-400 hover:text-amber-300 transition-colors"
+          title="Personalizar denominaciones y conceptos"
+        >
+          <Tag className="w-4 h-4 text-amber-400" />
+          <span className="text-[10px] mt-0.5">Conceptos</span>
+        </button>
 
         <button
           onClick={() => setShowLoginModal(true)}
@@ -1529,6 +1532,76 @@ export default function HomePage() {
           <span className="text-[10px] mt-0.5">{currentUser ? 'Perfil' : 'Entrar'}</span>
         </button>
       </nav>
+
+      {/* ============================================================== */}
+      {/* BARRA INFERIOR ESCRITORIO PC (Fondo Oscuro Sólido Slate-900)   */}
+      {/* ============================================================== */}
+      <footer className="hidden lg:flex fixed bottom-0 left-0 right-0 z-40 bg-slate-900 text-white border-t border-slate-800 h-11 px-6 items-center justify-between select-none shadow-2xl text-xs">
+        {/* Izquierda: Indicador de estado del sistema */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-slate-200 font-bold">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+            <span>GEOBRAS Central</span>
+          </div>
+          <span className="text-slate-700">•</span>
+          <span className="text-slate-400 text-[11px]">
+            {activeObras.length} obras en seguimiento | {totalVisitas} visitas | {totalFotos} fotos GPS
+          </span>
+        </div>
+
+        {/* Centro: Accesos directos nítidos */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleGoHome}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-sky-300 hover:bg-slate-700 hover:text-white border border-slate-700 transition-smooth"
+            title="Volver a la vista de inicio del mapa"
+          >
+            <Home className="w-3.5 h-3.5 text-sky-400" />
+            <span>Inicio (Mapa)</span>
+          </button>
+          <button
+            onClick={() => setDesktopRightView(desktopRightView === 'listado' ? 'expediente' : 'listado')}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 transition-smooth"
+            title="Alternar entre expediente y listado de obras"
+          >
+            <Layers className="w-3.5 h-3.5 text-indigo-400" />
+            <span>{desktopRightView === 'listado' ? 'Ver Expediente' : 'Ver Listado'}</span>
+          </button>
+          <button
+            onClick={() => handleOpenTaxonomias('TIPO_VISITA')}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-amber-300 hover:bg-slate-700 hover:text-amber-200 border border-slate-700 transition-smooth"
+            title="Gestionar denominaciones y conceptos"
+          >
+            <Tag className="w-3.5 h-3.5 text-amber-400" />
+            <span>Conceptos</span>
+          </button>
+          {permisos.editarObras && (
+            <button
+              onClick={() => setShowNuevaObraModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow-xs transition-smooth"
+              title="Dar de alta una nueva obra"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nueva Obra</span>
+            </button>
+          )}
+        </div>
+
+        {/* Derecha: Usuario conectado y sesión */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowLoginModal(true)}
+            className="flex items-center gap-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 text-slate-200 transition-smooth"
+            title="Ver perfil de usuario o cambiar de sesión"
+          >
+            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">
+              {currentUser ? currentUser.avatar : '??'}
+            </div>
+            <span className="text-[11px] font-medium">{currentUser?.name || 'Invitado'}</span>
+            <span className="text-[10px] text-sky-400 font-mono">({currentRole})</span>
+          </button>
+        </div>
+      </footer>
 
       {/* ============================================================== */}
       {/* MODALES DEL SISTEMA */}

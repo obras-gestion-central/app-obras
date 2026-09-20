@@ -58,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const user = currentUser || USUARIOS_MOCK.find((u) => u.role === currentRole) || USUARIOS_MOCK[0];
 
   return (
-    <header className="bg-slate-900/98 backdrop-blur-md text-white border-b border-slate-800 fixed top-0 left-0 right-0 z-40 shadow-md select-none">
+    <header className="bg-slate-900 text-white border-b border-slate-800 fixed top-0 left-0 right-0 z-40 shadow-lg select-none">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
           
@@ -92,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Botón de Inicio explícito en escritorio */}
             <button
               onClick={onGoHome}
-              className="hidden md:flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-smooth"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 hover:text-white rounded-lg border border-slate-700 transition-smooth"
               title="Volver al mapa de inicio"
             >
               <Home className="w-3.5 h-3.5 text-sky-400" />
@@ -103,7 +103,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onOpenTaxonomias && (
               <button
                 onClick={onOpenTaxonomias}
-                className="hidden md:flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-smooth border border-slate-700/60"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-300 bg-slate-800 hover:bg-slate-700 hover:text-amber-200 rounded-lg border border-slate-700 transition-smooth"
                 title="Editar personalmente motivos de visita, especialidades y tipos de obra"
               >
                 <Tag className="w-3.5 h-3.5 text-amber-400" />
@@ -236,7 +236,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Menú Desplegable Móvil (< lg) */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-slate-900/98 border-t border-slate-800 px-4 py-3 space-y-3 animate-in slide-in-from-top-2 duration-150 backdrop-blur-md">
+        <div className="lg:hidden bg-slate-900 border-t border-slate-800 px-4 py-3 space-y-3 animate-in slide-in-from-top-2 duration-150 shadow-2xl">
           
           {/* Info de sesión y permisos */}
           <div className="flex items-center justify-between p-2.5 bg-slate-800/80 rounded-xl border border-slate-700 text-xs">
