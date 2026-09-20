@@ -667,102 +667,6 @@ export default function HomePage() {
                 userRole={currentRole}
                 topOffsetClassName="top-2.5"
               />
-
-              {/* Bottom Sheet Táctil (Tarjeta Resumen Deslizante al Tocar una Obra) */}
-              {selectedObra && !mobileSheetDismissed && (
-                <div className="absolute bottom-16 left-2.5 right-2.5 z-30 bg-white rounded-2xl p-3.5 shadow-2xl border border-slate-200 animate-in slide-in-from-bottom-5 duration-200">
-                  
-                  {/* Tirador y cabecera de la tarjeta */}
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">
-                        {selectedObra.codigo}
-                      </span>
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                        selectedObra.estado === 'EN_EJECUCION' ? 'bg-emerald-100 text-emerald-800' :
-                        selectedObra.estado === 'PLANIFICACION' ? 'bg-sky-100 text-sky-800' :
-                        selectedObra.estado === 'PARALIZADA' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
-                      }`}>
-                        {selectedObra.estado.replace('_', ' ')}
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-medium flex items-center gap-0.5">
-                        <MapPin className="w-2.5 h-2.5 text-slate-400" />
-                        {selectedObra.municipio}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={() => setMobileSheetDismissed(true)}
-                      className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
-                      title="Cerrar tarjeta y ver mapa completo"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Título de la obra */}
-                  <h3 className="font-bold text-slate-900 text-xs line-clamp-1 mb-1">
-                    {selectedObra.titulo}
-                  </h3>
-
-                  {/* Responsable de la obra */}
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1.5">
-                    <UserIcon className="w-3 h-3 text-indigo-600 shrink-0" />
-                    <span>Responsable: <strong className="text-slate-800">{selectedObra.responsableNombre}</strong></span>
-                  </div>
-
-                  {/* Barra de progreso y presupuesto */}
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 mb-2.5">
-                    <div className="flex items-center gap-1.5 flex-1 mr-3">
-                      <div className="flex-1 bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div className="bg-sky-600 h-1.5 rounded-full" style={{ width: `${selectedObra.porcentajeAvance}%` }}></div>
-                      </div>
-                      <span className="font-bold text-slate-700">{selectedObra.porcentajeAvance}%</span>
-                    </div>
-
-                    <div>
-                      {permisos.verDatosEconomicos ? (
-                        <span className="font-bold text-emerald-700">{formatCurrency(selectedObra.presupuestoAdjudicacion)}</span>
-                      ) : (
-                        <span className="text-slate-400 italic">Económico privado</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Botones de Acción Directa */}
-                  <div className="grid grid-cols-3 gap-1.5 pt-1 border-t border-slate-100">
-                    <button
-                      onClick={() => setMobileExpedienteOpen(true)}
-                      className="col-span-1 py-1.5 px-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 shadow-xs"
-                    >
-                      <FolderOpen className="w-3.5 h-3.5" />
-                      <span>Expediente</span>
-                    </button>
-
-                    {permisos.crearVisitas && (
-                      <button
-                        onClick={() => setShowVisitaModal(true)}
-                        className="py-1.5 px-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 shadow-xs"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Visita</span>
-                      </button>
-                    )}
-
-                    {permisos.exportarDossier && (
-                      <button
-                        onClick={() => setShowDossierModal(true)}
-                        className="py-1.5 px-2 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1"
-                      >
-                        <FileDown className="w-3.5 h-3.5" />
-                        <span>Dossier</span>
-                      </button>
-                    )}
-                  </div>
-
-                </div>
-              )}
-
             </div>
           )}
 
@@ -1469,6 +1373,107 @@ export default function HomePage() {
         </div>
 
       </main>
+
+      {/* ============================================================== */}
+      {/* TARJETA DE OBRA FLOTANTE ANCLADA (MÓVIL Y TABLET)             */}
+      {/* Totalmente fija sobre el mapa: no se desplaza con el scroll   */}
+      {/* ============================================================== */}
+      {selectedObra && !mobileSheetDismissed && activeView === 'mapa' && !mobileExpedienteOpen && (
+        <div className="lg:hidden fixed bottom-[68px] left-3 right-3 sm:left-6 sm:right-auto sm:w-[420px] z-50 bg-white rounded-2xl p-4 shadow-2xl border border-slate-200 animate-in slide-in-from-bottom-4 duration-200 select-none pointer-events-auto">
+          
+          {/* Tirador y cabecera de la tarjeta */}
+          <div className="flex items-start justify-between gap-2 mb-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-mono text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">
+                {selectedObra.codigo}
+              </span>
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                selectedObra.estado === 'EN_EJECUCION' ? 'bg-emerald-100 text-emerald-800' :
+                selectedObra.estado === 'PLANIFICACION' ? 'bg-sky-100 text-sky-800' :
+                selectedObra.estado === 'PARALIZADA' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+              }`}>
+                {selectedObra.estado.replace('_', ' ')}
+              </span>
+              <span className="text-[10px] text-slate-500 font-medium flex items-center gap-0.5">
+                <MapPin className="w-2.5 h-2.5 text-slate-400" />
+                {selectedObra.municipio}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setMobileSheetDismissed(true)}
+              className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+              title="Cerrar tarjeta flotante"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Título de la obra */}
+          <h3 className="font-bold text-slate-900 text-xs line-clamp-1 mb-1">
+            {selectedObra.titulo}
+          </h3>
+
+          {/* Responsable de la obra */}
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1.5">
+            <UserIcon className="w-3 h-3 text-indigo-600 shrink-0" />
+            <span>Responsable: <strong className="text-slate-800">{selectedObra.responsableNombre}</strong></span>
+          </div>
+
+          {/* Barra de progreso y presupuesto */}
+          <div className="flex items-center justify-between text-[10px] text-slate-500 mb-2.5">
+            <div className="flex items-center gap-1.5 flex-1 mr-3">
+              <div className="flex-1 bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-sky-600 h-1.5 rounded-full" style={{ width: `${selectedObra.porcentajeAvance}%` }}></div>
+              </div>
+              <span className="font-bold text-slate-700">{selectedObra.porcentajeAvance}%</span>
+            </div>
+
+            <div>
+              {permisos.verDatosEconomicos ? (
+                <span className="font-bold text-emerald-700">{formatCurrency(selectedObra.presupuestoAdjudicacion)}</span>
+              ) : (
+                <span className="text-slate-400 italic">Económico privado</span>
+              )}
+            </div>
+          </div>
+
+          {/* Botones de Acción Directa (Acceso en 1 clic asegurado) */}
+          <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100">
+            <button
+              onClick={() => setMobileExpedienteOpen(true)}
+              className="col-span-1 py-2 px-2 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm transition-transform"
+              title="Abrir expediente completo de la obra"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+              <span>Expediente</span>
+            </button>
+
+            {permisos.crearVisitas && (
+              <button
+                onClick={() => setShowVisitaModal(true)}
+                className="py-2 px-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 shadow-sm transition-transform"
+                title="Registrar nueva visita a pie de obra"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Visita</span>
+              </button>
+            )}
+
+            {permisos.exportarDossier && (
+              <button
+                onClick={() => setShowDossierModal(true)}
+                className="py-2 px-2 bg-sky-50 hover:bg-sky-100 active:scale-95 text-sky-700 border border-sky-200 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-transform"
+                title="Descargar dossier técnico en PDF DIN A4"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                <span>Dossier</span>
+              </button>
+            )}
+          </div>
+
+        </div>
+      )}
 
       {/* ============================================================== */}
       {/* BARRA INFERIOR MÓVIL Y TABLET (Fondo Oscuro Sólido Slate-900)  */}
