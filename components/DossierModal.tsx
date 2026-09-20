@@ -152,14 +152,14 @@ export const DossierModal: React.FC<DossierModalProps> = ({
               className="bg-white p-8 rounded-xl shadow-md border border-slate-200 max-w-3xl mx-auto text-slate-900 space-y-6"
             >
               {/* Encabezado Oficial */}
-              <div className="border-b-2 border-slate-900 pb-4 flex items-start justify-between">
+              <div className="border-b-2 border-slate-900 pb-4 flex items-start justify-between print-avoid-break">
                 <div>
                   <div className="flex items-center gap-2 text-sky-700 font-black text-xl tracking-tight">
                     <Building2 className="w-6 h-6 text-sky-700" />
                     <span>GEOBRAS • SISTEMA DE GESTIÓN TÉCNICA</span>
                   </div>
                   <h1 className="text-xl font-black text-slate-900 mt-1 uppercase">
-                    DOSSIER TÉCNICO DE OBRA
+                    DOSSIER TÉCNICO OFICIAL DE OBRA (DIN A4)
                   </h1>
                   <p className="text-xs text-slate-500">
                     Expediente: <strong className="text-slate-800">{obra.codigo}</strong> • Emisión: {new Date().toLocaleDateString('es-ES')}
@@ -177,7 +177,7 @@ export const DossierModal: React.FC<DossierModalProps> = ({
               </div>
 
               {/* Ficha Principal de la Obra */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs print-avoid-break">
                 <div>
                   <h3 className="font-bold text-sm text-slate-900 mb-2">{obra.titulo}</h3>
                   <p className="text-slate-600 mb-3">{obra.descripcion}</p>
@@ -185,13 +185,13 @@ export const DossierModal: React.FC<DossierModalProps> = ({
                   <div className="space-y-1 text-slate-600">
                     <div><strong>Dirección:</strong> {obra.direccion}, {obra.municipio} ({obra.provincia})</div>
                     <div><strong>Coordenadas GPS:</strong> {obra.lat.toFixed(6)}, {obra.lng.toFixed(6)}</div>
-                    <div><strong>Responsable:</strong> {obra.responsableNombre}</div>
+                    <div><strong>Responsable de Obra:</strong> {obra.responsableNombre}</div>
                   </div>
                 </div>
 
                 <div className="space-y-2 border-l border-slate-200 pl-4">
                   <div>
-                    <span className="text-[11px] text-slate-500 block">Línea de Producto</span>
+                    <span className="text-[11px] text-slate-500 block">Especialidad / Línea Principal</span>
                     <span className="font-bold text-slate-800">{obra.lineaProductoPrincipal}</span>
                   </div>
                   <div>
@@ -223,7 +223,7 @@ export const DossierModal: React.FC<DossierModalProps> = ({
               </div>
 
               {/* Histórico Cronológico de Visitas */}
-              <div>
+              <div className="print-avoid-break">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 pb-1 border-b border-slate-200">
                   1. Informes de Visitas e Inspecciones a Pie de Obra
                 </h3>
@@ -233,12 +233,16 @@ export const DossierModal: React.FC<DossierModalProps> = ({
                 ) : (
                   <div className="space-y-3">
                     {visitas.map((v, i) => (
-                      <div key={v.id} className="p-3 border border-slate-200 rounded-lg text-xs space-y-1.5">
+                      <div key={v.id} className="p-3 border border-slate-200 rounded-lg text-xs space-y-1.5 print-avoid-break bg-white">
                         <div className="flex justify-between font-bold text-slate-800">
                           <span>Visita #{i + 1}: {v.tipoVisita} ({formatDate(v.fechaVisita)})</span>
-                          <span className="text-slate-500 font-normal">Técnico: {v.tecnicoNombre} ({v.horaEntrada} - {v.horaSalida})</span>
+                          <span className="text-slate-600 font-medium">Técnico in situ: <strong>{v.tecnicoNombre}</strong> ({v.horaEntrada} - {v.horaSalida})</span>
                         </div>
-                        <p className="text-slate-700"><strong>Actuación:</strong> {v.tituloResumen}</p>
+                        <div className="text-[10px] text-slate-500 flex items-center justify-between border-b border-slate-100 pb-1">
+                          <span>Especialidad: <strong>{v.lineaProducto}</strong></span>
+                          <span>Registrado por: <strong>{v.registradoPorNombre || v.tecnicoNombre}</strong></span>
+                        </div>
+                        <p className="text-slate-700 pt-0.5"><strong>Actuación:</strong> {v.tituloResumen}</p>
                         <p className="text-slate-600 italic"><strong>Conclusiones:</strong> {v.conclusiones}</p>
 
                         {v.checklist && v.checklist.length > 0 && (
@@ -258,7 +262,7 @@ export const DossierModal: React.FC<DossierModalProps> = ({
               </div>
 
               {/* Registro de Hitos (Timeline) */}
-              <div>
+              <div className="print-avoid-break">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 pb-1 border-b border-slate-200">
                   2. Registro Cronológico de Eventos y Comunicaciones
                 </h3>
@@ -285,7 +289,7 @@ export const DossierModal: React.FC<DossierModalProps> = ({
               </div>
 
               {/* Registro Documental */}
-              <div>
+              <div className="print-avoid-break">
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 pb-1 border-b border-slate-200">
                   3. Expediente Documental (Facturas, Ofertas, Planos)
                 </h3>
@@ -319,13 +323,13 @@ export const DossierModal: React.FC<DossierModalProps> = ({
 
               {/* Galería de Fotografías con GPS */}
               {fotos.length > 0 && (
-                <div>
+                <div className="print-avoid-break">
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 mb-2 pb-1 border-b border-slate-200">
                     4. Fotografías Georreferenciadas a Pie de Obra
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
                     {fotos.slice(0, 4).map((f) => (
-                      <div key={f.id} className="border border-slate-200 rounded-lg p-2 text-center text-xs">
+                      <div key={f.id} className="border border-slate-200 rounded-lg p-2 text-center text-xs bg-white">
                         <img src={f.miniaturaUrl || f.url} alt={f.titulo} className="w-full h-28 object-cover rounded mb-1.5" />
                         <div className="font-bold text-slate-800 text-[11px]">{f.titulo}</div>
                         <div className="text-[10px] text-slate-400">
@@ -337,8 +341,8 @@ export const DossierModal: React.FC<DossierModalProps> = ({
                 </div>
               )}
 
-              {/* Área de Firmas Oficiales */}
-              <div className="pt-8 border-t-2 border-slate-300 grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-12 text-xs">
+              {/* Área de Firmas Oficiales (Paginada al pie) */}
+              <div className="pt-8 border-t-2 border-slate-300 grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-12 text-xs print-avoid-break">
                 <div className="text-center">
                   <div className="h-16 border-b border-dashed border-slate-400 mb-2"></div>
                   <span className="font-bold text-slate-800 block">Firma del Técnico Responsable</span>

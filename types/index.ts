@@ -100,6 +100,10 @@ export interface VisitaReport {
   checklist: CheckItem[];
   fotosIds: string[];
   documentosIds: string[];
+  registradoPorNombre?: string;
+  registradoEn?: string;
+  actualizadoPorNombre?: string;
+  actualizadoEn?: string;
   isDeleted?: boolean;
   deletedAt?: string;
 }

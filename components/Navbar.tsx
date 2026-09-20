@@ -55,7 +55,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const user = currentUser || USUARIOS_MOCK.find((u) => u.role === currentRole) || USUARIOS_MOCK[0];
 
   return (
-    <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md select-none">
+    <header className="bg-slate-900/98 backdrop-blur-md text-white border-b border-slate-800 fixed top-0 left-0 right-0 z-40 shadow-md select-none">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
           
@@ -96,8 +96,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Inicio</span>
             </button>
 
-            {/* Alternador Mapa / Listado (Visible en pantallas medianas y grandes) */}
-            <div className="hidden sm:flex bg-slate-800 p-0.5 rounded-lg items-center border border-slate-700">
+            {/* Alternador Mapa / Listado (Visible solo en tablet/móvil horizontal; oculto en PC lg: ya que conviven al 50% en paralelo) */}
+            <div className="hidden sm:flex lg:hidden bg-slate-800 p-0.5 rounded-lg items-center border border-slate-700">
               <button
                 onClick={() => setActiveView('mapa')}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1 transition-smooth ${

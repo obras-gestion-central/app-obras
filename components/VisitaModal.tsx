@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Obra, VisitaReport, CheckItem, EstadoObra } from '@/types';
+import { Obra, VisitaReport, CheckItem, EstadoObra, User } from '@/types';
 import { CreatableCombobox } from './CreatableCombobox';
 import { 
   X, 
@@ -12,7 +12,9 @@ import {
   Plus, 
   Trash2, 
   Check, 
-  AlertTriangle 
+  AlertTriangle,
+  Users,
+  UserCheck
 } from 'lucide-react';
 
 interface VisitaModalProps {
@@ -24,6 +26,7 @@ interface VisitaModalProps {
   onCreateOption: (category: 'LINEA_PRODUCTO' | 'TIPO_VISITA', value: string) => void;
   onSaveVisita: (visita: Partial<VisitaReport>) => void;
   currentUserNombre: string;
+  users?: User[];
 }
 
 export const VisitaModal: React.FC<VisitaModalProps> = ({
@@ -35,7 +38,9 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
   onCreateOption,
   onSaveVisita,
   currentUserNombre,
+  users = [],
 }) => {
+  const [tecnicoNombre, setTecnicoNombre] = useState<string>(currentUserNombre);
   const [tipoVisita, setTipoVisita] = useState<string>('Seguimiento Periódico de Avance');
   const [lineaProducto, setLineaProducto] = useState<string>(obra.lineaProductoPrincipal);
   const [fechaVisita, setFechaVisita] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -122,7 +127,9 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
 
     onSaveVisita({
       obraId: obra.id,
-      tecnicoNombre: currentUserNombre,
+      tecnicoNombre: tecnicoNombre || currentUserNombre,
+      registradoPorNombre: currentUserNombre,
+      registradoEn: new Date().toISOString(),
       tipoVisita,
       lineaProducto,
       fechaVisita,
@@ -165,10 +172,38 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
         {/* Formulario */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
           
-          {/* Fila 1: Cuadros Combinados Dinámicos (Línea de Producto y Tipo de Visita) */}
+          {/* Selector de Compañero que realiza la visita */}
+          <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/90 space-y-1">
+            <label className="block text-xs font-bold text-slate-800 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-sky-600" />
+                <span>Compañero que realiza la visita</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-normal">
+                Sesión actual: <strong className="text-slate-700">{currentUserNombre}</strong>
+              </span>
+            </label>
+            <select
+              value={tecnicoNombre}
+              onChange={(e) => setTecnicoNombre(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-semibold text-slate-900"
+            >
+              {users && users.length > 0 ? (
+                users.map((u) => (
+                  <option key={u.id} value={u.name}>
+                    {u.name} — {u.role.replace('_', ' ')}
+                  </option>
+                ))
+              ) : (
+                <option value={currentUserNombre}>{currentUserNombre}</option>
+              )}
+            </select>
+          </div>
+
+          {/* Fila 1: Cuadros Combinados Dinámicos (Línea de Trabajo y Motivo de la Visita) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <CreatableCombobox
-              label="Tipo de Visita"
+              label="Motivo / Tipo de Visita"
               options={tiposVisitaOptions}
               value={tipoVisita}
               onChange={setTipoVisita}
@@ -177,7 +212,7 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
             />
 
             <CreatableCombobox
-              label="Línea de Producto Asociada"
+              label="Especialidad / Línea de Trabajo Asociada"
               options={lineasProductoOptions}
               value={lineaProducto}
               onChange={setLineaProducto}
@@ -346,8 +381,19 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
             </select>
           </div>
 
+          {/* Registro de Auditoría y Trazabilidad */}
+          <div className="bg-sky-50/70 p-3 rounded-xl border border-sky-100 flex items-center justify-between text-xs text-sky-900">
+            <span className="flex items-center gap-1.5 font-medium">
+              <UserCheck className="w-4 h-4 text-sky-600" />
+              <span>Auditoría de inserción:</span>
+            </span>
+            <span className="text-[11px] text-slate-600">
+              Quedará registrado a nombre de <strong>{currentUserNombre}</strong> con fecha y hora actual
+            </span>
+          </div>
+
           {/* Botones de Acción */}
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}

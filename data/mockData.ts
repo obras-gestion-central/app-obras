@@ -324,6 +324,8 @@ export const VISITAS_MOCK: VisitaReport[] = [
     ],
     fotosIds: ['fot-1', 'fot-2'],
     documentosIds: ['doc-3'],
+    registradoPorNombre: 'David Rivas',
+    registradoEn: '2026-09-18T13:00:00.000Z',
   },
   {
     id: 'vis-2',
@@ -348,6 +350,8 @@ export const VISITAS_MOCK: VisitaReport[] = [
     ],
     fotosIds: ['fot-3'],
     documentosIds: ['doc-5'],
+    registradoPorNombre: 'Carlos Martínez',
+    registradoEn: '2026-09-15T18:00:00.000Z',
   },
 ];
 

@@ -84,6 +84,7 @@ export default function HomePage() {
   const [selectedObraId, setSelectedObraId] = useState<string>('obr-1');
   const [activeTabDetail, setActiveTabDetail] = useState<'timeline' | 'visitas' | 'fotos' | 'documentos'>('timeline');
   const [activeView, setActiveView] = useState<'mapa' | 'listado'>('mapa');
+  const [desktopRightView, setDesktopRightView] = useState<'expediente' | 'listado'>('expediente');
 
   // Estados específicos para interacción Móvil Depurada (Mobile-First)
   const [mobileSheetDismissed, setMobileSheetDismissed] = useState(false);
@@ -221,10 +222,11 @@ export default function HomePage() {
   // Obra seleccionada activa
   const selectedObra = activeObras.find((o) => o.id === selectedObraId) || activeObras[0] || null;
 
-  // Selección de obra (abre el bottom sheet táctil si está en móvil)
+  // Selección de obra (abre el bottom sheet táctil si está en móvil o el expediente en PC)
   const handleSelectObra = (id: string) => {
     setSelectedObraId(id);
     setMobileSheetDismissed(false);
+    setDesktopRightView('expediente');
   };
 
   // Elementos eliminados (Papelera)
@@ -266,11 +268,14 @@ export default function HomePage() {
   const handleSaveVisita = (nuevaVisitaData: Partial<VisitaReport>) => {
     const id = `vis-${Date.now()}`;
     const authorName = currentUser?.name || 'Técnico';
+    const assignedTecnico = nuevaVisitaData.tecnicoNombre || authorName;
     const newVis: VisitaReport = {
       id,
       obraId: nuevaVisitaData.obraId || selectedObra?.id || '',
-      tecnicoId: currentUser?.id || 'usr-1',
-      tecnicoNombre: authorName,
+      tecnicoId: nuevaVisitaData.tecnicoId || currentUser?.id || 'usr-1',
+      tecnicoNombre: assignedTecnico,
+      registradoPorNombre: authorName,
+      registradoEn: new Date().toISOString(),
       tipoVisita: nuevaVisitaData.tipoVisita || 'Seguimiento',
       lineaProducto: nuevaVisitaData.lineaProducto || '',
       fechaVisita: nuevaVisitaData.fechaVisita || new Date().toISOString().split('T')[0],
@@ -294,7 +299,7 @@ export default function HomePage() {
       obraId: newVis.obraId,
       eventType: 'VISITA',
       titulo: `${newVis.tipoVisita} - ${newVis.tituloResumen}`,
-      descripcion: newVis.conclusiones,
+      descripcion: `Visita realizada por ${assignedTecnico}. Conclusiones: ${newVis.conclusiones}`,
       autorNombre: authorName,
       autorRol: currentRole,
       fecha: `${newVis.fechaVisita} ${newVis.horaSalida}`,
@@ -446,7 +451,7 @@ export default function HomePage() {
   const totalFotos = fotos.filter((f) => !f.isDeleted).length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100 font-sans select-none overflow-hidden pb-14 sm:pb-0">
+    <div className="min-h-screen flex flex-col bg-slate-100 font-sans select-none overflow-hidden pt-14 sm:pt-16 pb-14 sm:pb-0">
       
       {/* 1. Barra de Navegación Compacta */}
       <Navbar
@@ -931,6 +936,17 @@ export default function HomePage() {
                               </div>
                             </div>
                           )}
+
+                          {/* Trazabilidad de Compañero y Registro */}
+                          <div className="text-[10px] text-slate-500 pt-1.5 border-t border-slate-100 flex flex-col gap-0.5">
+                            <div className="flex items-center justify-between">
+                              <span>👷 Visita: <strong className="text-slate-800">{v.tecnicoNombre}</strong></span>
+                              <span className="text-sky-700 font-medium">{v.lineaProducto}</span>
+                            </div>
+                            <div className="text-[9px] text-slate-400">
+                              Registrado por: <strong>{v.registradoPorNombre || v.tecnicoNombre}</strong> {v.registradoEn ? `el ${formatDate(v.registradoEn)}` : ''}
+                            </div>
+                          </div>
                         </div>
                       ))
                     )}
@@ -966,128 +982,194 @@ export default function HomePage() {
         </div>
 
         {/* ============================================================== */}
-        {/* VISTA ESCRITORIO (lg:flex): DISEÑO DOBLE COLUMNA LIMPIO Y MODERNO */}
+        {/* VISTA ESCRITORIO (lg:grid): MAPA PROTAGONISTA (50%) Y EXPEDIENTE (50%) */}
         {/* ============================================================== */}
         <div className="hidden lg:grid grid-cols-12 gap-4 max-w-7xl w-full mx-auto px-6 py-2 flex-1 min-h-0">
           
-          {/* COLUMNA IZQUIERDA: Mapa y Lista de Obras (col-span-5) */}
-          <div className="col-span-5 flex flex-col gap-3 min-h-0">
+          {/* COLUMNA IZQUIERDA: Mapa Protagonista a Pantalla Completa (col-span-6) */}
+          <div className="col-span-6 flex flex-col min-h-0 relative rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-slate-900">
             
-            {/* Mapa Interactivo */}
-            <div className="h-72 w-full rounded-2xl overflow-hidden shadow-sm border border-slate-200 shrink-0">
-              <MapView
-                obras={activeObras}
-                fotos={selectedFotos}
-                selectedObraId={selectedObra?.id || null}
-                onSelectObra={handleSelectObra}
-                userRole={currentRole}
-              />
-            </div>
-
-            {/* Buscador y Listado de Obras */}
-            <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex-1 flex flex-col min-h-0">
-              
-              <div className="flex items-center justify-between gap-2 mb-2.5">
+            {/* Barra de Filtros Flotante Sobre el Mapa en PC */}
+            <div className="absolute top-3 left-3 right-16 z-30 pointer-events-auto">
+              <div className="bg-white/95 backdrop-blur-md rounded-2xl p-1.5 shadow-lg border border-slate-200/90 flex items-center gap-2">
                 <div className="relative flex-1">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                   <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar obra, municipio o producto..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500"
+                    placeholder="Buscar obra, municipio..."
+                    className="w-full pl-8 pr-2 py-1 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:ring-1 focus:ring-sky-500"
                   />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-2 top-1.5 p-0.5 text-slate-400"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
 
                 <select
                   value={estadoFilter}
                   onChange={(e) => setEstadoFilter(e.target.value)}
-                  className="text-xs bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-2 text-slate-700 font-medium"
+                  className="text-xs bg-slate-50 border border-slate-200 rounded-xl py-1 px-2 text-slate-700 font-semibold"
                 >
-                  <option value="TODOS">Todos ({activeObras.length})</option>
+                  <option value="TODOS">Todas ({activeObras.length})</option>
                   <option value="EN_EJECUCION">En Ejecución</option>
                   <option value="PLANIFICACION">Planificación</option>
                   <option value="PARALIZADA">Paralizada</option>
                   <option value="FINALIZADA">Finalizada</option>
                 </select>
               </div>
-
-              {/* Lista Scrollable */}
-              <div className="space-y-2 overflow-y-auto flex-1 pr-1">
-                {activeObras.map((obra) => {
-                  const isSelected = obra.id === selectedObra?.id;
-                  return (
-                    <div
-                      key={obra.id}
-                      onClick={() => setSelectedObraId(obra.id)}
-                      className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
-                        isSelected
-                          ? 'bg-sky-50 border-sky-400 shadow-xs ring-1 ring-sky-400/30'
-                          : 'bg-white border-slate-200/80 hover:border-slate-300 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-mono text-[10px] font-bold text-sky-700 bg-sky-100/70 px-1.5 py-0.5 rounded">
-                          {obra.codigo}
-                        </span>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                          obra.estado === 'EN_EJECUCION' ? 'bg-emerald-100 text-emerald-800' :
-                          obra.estado === 'PLANIFICACION' ? 'bg-sky-100 text-sky-800' :
-                          obra.estado === 'PARALIZADA' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {obra.estado.replace('_', ' ')}
-                        </span>
-                      </div>
-
-                      <h4 className="font-bold text-slate-900 line-clamp-1">{obra.titulo}</h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-slate-400" />
-                        <span>{obra.municipio} • {obra.lineaProductoPrincipal}</span>
-                      </p>
-
-                      <div className="text-[10px] text-indigo-700 font-medium mt-1">
-                        Responsable: {obra.responsableNombre}
-                      </div>
-
-                      <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-100">
-                        <span>Avance: <strong>{obra.porcentajeAvance}%</strong></span>
-                        {permisos.verDatosEconomicos ? (
-                          <span className="text-emerald-700 font-semibold">{formatCurrency(obra.presupuestoAdjudicacion)}</span>
-                        ) : (
-                          <span className="text-slate-400 italic">Económico privado</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
             </div>
 
+            {/* Mapa Interactivo con Altura Completa */}
+            <div className="w-full h-full flex-1">
+              <MapView
+                obras={activeObras}
+                fotos={selectedFotos}
+                selectedObraId={selectedObra?.id || null}
+                onSelectObra={handleSelectObra}
+                userRole={currentRole}
+                topOffsetClassName="top-14"
+              />
+            </div>
           </div>
 
-          {/* COLUMNA DERECHA: Ficha Detallada de la Obra (col-span-7) */}
-          <div className="col-span-7 flex flex-col min-h-0">
-            {selectedObra ? (
-              <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex-1 flex flex-col min-h-0 space-y-3">
-                
-                {/* Cabecera */}
-                <div className="flex items-start justify-between flex-wrap gap-2 pb-3 border-b border-slate-200 shrink-0">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-mono text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
-                        {selectedObra.codigo}
-                      </span>
-                      <span className="text-xs text-slate-500 font-medium">
-                        {selectedObra.municipio} ({selectedObra.provincia})
-                      </span>
-                    </div>
+          {/* COLUMNA DERECHA: Expediente / Listado de Obras (col-span-6) */}
+          <div className="col-span-6 flex flex-col min-h-0">
+            <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex-1 flex flex-col min-h-0 space-y-3 overflow-hidden">
+              
+              {/* Barra superior de alternancia en PC: Expediente vs Listado */}
+              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-200 shrink-0">
+                <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+                  <button
+                    onClick={() => setDesktopRightView('expediente')}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-smooth flex items-center gap-1.5 ${
+                      desktopRightView === 'expediente'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <FolderOpen className="w-3.5 h-3.5 text-sky-600" />
+                    <span>Expediente</span>
+                  </button>
 
-                    <h2 className="text-base font-bold text-slate-900">{selectedObra.titulo}</h2>
-                    <p className="text-xs text-slate-600 mt-0.5 max-w-xl line-clamp-2">
-                      {selectedObra.descripcion}
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => setDesktopRightView('listado')}
+                    className={`px-3 py-1 text-xs font-bold rounded-lg transition-smooth flex items-center gap-1.5 ${
+                      desktopRightView === 'listado'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Lista ({activeObras.length})</span>
+                  </button>
+                </div>
+
+                {/* Selector rápido directo de obras */}
+                <select
+                  value={selectedObraId}
+                  onChange={(e) => {
+                    setSelectedObraId(e.target.value);
+                    setDesktopRightView('expediente');
+                  }}
+                  className="text-xs bg-slate-50 border border-slate-200 rounded-xl py-1 px-2.5 font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500 max-w-[210px] truncate"
+                  title="Cambiar de obra"
+                >
+                  {activeObras.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.codigo} — {o.titulo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Vista A: Listado completo de obras */}
+              {desktopRightView === 'listado' && (
+                <div className="space-y-2 overflow-y-auto flex-1 pr-1">
+                  {activeObras.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 text-xs">
+                      No se encontraron obras con el filtro actual.
+                    </div>
+                  ) : (
+                    activeObras.map((obra) => {
+                      const isSelected = obra.id === selectedObra?.id;
+                      return (
+                        <div
+                          key={obra.id}
+                          onClick={() => {
+                            setSelectedObraId(obra.id);
+                            setDesktopRightView('expediente');
+                          }}
+                          className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                            isSelected
+                              ? 'bg-sky-50 border-sky-400 shadow-xs ring-1 ring-sky-400/30'
+                              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-mono text-[10px] font-bold text-sky-700 bg-sky-100/70 px-1.5 py-0.5 rounded">
+                              {obra.codigo}
+                            </span>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                              obra.estado === 'EN_EJECUCION' ? 'bg-emerald-100 text-emerald-800' :
+                              obra.estado === 'PLANIFICACION' ? 'bg-sky-100 text-sky-800' :
+                              obra.estado === 'PARALIZADA' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {obra.estado.replace('_', ' ')}
+                            </span>
+                          </div>
+
+                          <h4 className="font-bold text-slate-900 line-clamp-1">{obra.titulo}</h4>
+                          <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-400" />
+                            <span>{obra.municipio} • {obra.lineaProductoPrincipal}</span>
+                          </p>
+
+                          <div className="text-[10px] text-indigo-700 font-medium mt-1">
+                            Responsable: {obra.responsableNombre}
+                          </div>
+
+                          <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-100">
+                            <span>Avance: <strong>{obra.porcentajeAvance}%</strong></span>
+                            {permisos.verDatosEconomicos ? (
+                              <span className="text-emerald-700 font-semibold">{formatCurrency(obra.presupuestoAdjudicacion)}</span>
+                            ) : (
+                              <span className="text-slate-400 italic">Económico privado</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* Vista B: Expediente Técnico de la Obra Seleccionada */}
+              {desktopRightView === 'expediente' && (
+                selectedObra ? (
+                  <div className="flex-1 flex flex-col min-h-0 space-y-3 overflow-hidden">
+                    {/* Cabecera */}
+                    <div className="flex items-start justify-between flex-wrap gap-2 pb-3 border-b border-slate-200 shrink-0">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-mono text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+                            {selectedObra.codigo}
+                          </span>
+                          <span className="text-xs text-slate-500 font-medium">
+                            {selectedObra.municipio} ({selectedObra.provincia})
+                          </span>
+                        </div>
+
+                        <h2 className="text-base font-bold text-slate-900">{selectedObra.titulo}</h2>
+                        <p className="text-xs text-slate-600 mt-0.5 max-w-xl line-clamp-2">
+                          {selectedObra.descripcion}
+                        </p>
+                      </div>
 
                   <div className="flex items-center gap-2">
                     {permisos.exportarDossier && (
@@ -1252,8 +1334,10 @@ export default function HomePage() {
                               </div>
                             )}
 
-                            <div className="text-[10px] text-slate-400 pt-1 border-t border-slate-200">
-                              Técnico: <strong>{v.tecnicoNombre}</strong> | Línea: {v.lineaProducto}
+                            <div className="text-[10px] text-slate-500 pt-1.5 border-t border-slate-200 flex items-center justify-between flex-wrap gap-1">
+                              <span>👷 Visita realizada por: <strong className="text-slate-800">{v.tecnicoNombre}</strong></span>
+                              <span className="text-sky-700 font-medium">Línea: {v.lineaProducto}</span>
+                              <span className="text-slate-400">📝 Registrado por: <strong className="text-slate-700">{v.registradoPorNombre || v.tecnicoNombre}</strong> {v.registradoEn ? `el ${formatDate(v.registradoEn)}` : ''}</span>
                             </div>
                           </div>
                         ))
@@ -1282,15 +1366,17 @@ export default function HomePage() {
                       currentUserNombre={currentUser?.name || 'Técnico'}
                     />
                   )}
-                </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center text-slate-400 flex-1 flex flex-col items-center justify-center">
+                    <Building2 className="w-12 h-12 text-slate-300 mb-2" />
+                    <p className="text-sm font-semibold text-slate-600">Selecciona una obra para ver su ficha completa</p>
+                  </div>
+                )
+              )}
 
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl p-12 text-center text-slate-400 border border-slate-200 flex-1 flex flex-col items-center justify-center">
-                <Building2 className="w-12 h-12 text-slate-300 mb-2" />
-                <p className="text-sm font-semibold text-slate-600">Selecciona una obra para ver su ficha completa</p>
-              </div>
-            )}
+            </div>
           </div>
 
         </div>
@@ -1373,6 +1459,7 @@ export default function HomePage() {
           onCreateOption={handleCreateTaxonomy}
           onSaveVisita={handleSaveVisita}
           currentUserNombre={currentUser?.name || 'Técnico'}
+          users={users}
         />
       )}
 
