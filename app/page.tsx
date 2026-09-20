@@ -601,29 +601,6 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* Alternador Flotante Inferior Mapa / Listado */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
-                <div className="bg-slate-900/90 backdrop-blur-md text-white px-1 py-1 rounded-full shadow-xl border border-slate-700 flex items-center gap-1">
-                  <button
-                    onClick={() => setActiveView('mapa')}
-                    className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-smooth ${
-                      activeView === 'mapa' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <MapIcon className="w-3.5 h-3.5" />
-                    <span>Mapa</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveView('listado')}
-                    className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-smooth ${
-                      activeView === 'listado' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Lista ({activeObras.length})</span>
-                  </button>
-                </div>
-              </div>
 
             </div>
           )}
@@ -724,33 +701,32 @@ export default function HomePage() {
                   })
                 )}
               </div>
-
-              {/* Alternador Flotante Inferior */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
-                <div className="bg-slate-900/90 backdrop-blur-md text-white px-1 py-1 rounded-full shadow-xl border border-slate-700 flex items-center gap-1">
-                  <button
-                    onClick={() => setActiveView('mapa')}
-                    className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-smooth ${
-                      activeView === 'mapa' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <MapIcon className="w-3.5 h-3.5" />
-                    <span>Mapa</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveView('listado')}
-                    className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-smooth ${
-                      activeView === 'listado' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    <span>Lista ({activeObras.length})</span>
-                  </button>
-                </div>
-              </div>
-
             </div>
           )}
+
+          {/* Alternador Flotante Inferior Unificado (Móvil) */}
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
+            <div className="bg-slate-900/90 backdrop-blur-md text-white px-1 py-1 rounded-full shadow-xl border border-slate-700 flex items-center gap-1">
+              <button
+                onClick={() => setActiveView('mapa')}
+                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-smooth ${
+                  activeView === 'mapa' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <MapIcon className="w-3.5 h-3.5" />
+                <span>Mapa</span>
+              </button>
+              <button
+                onClick={() => setActiveView('listado')}
+                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-smooth ${
+                  activeView === 'listado' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Lista ({activeObras.length})</span>
+              </button>
+            </div>
+          </div>
 
           {/* VISTA DESLIZABLE DE EXPEDIENTE COMPLETO EN MÓVIL */}
           {mobileExpedienteOpen && selectedObra && (
