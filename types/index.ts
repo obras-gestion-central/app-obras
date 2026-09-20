@@ -6,6 +6,8 @@ export interface User {
   email: string;
   role: UserRole;
   avatar: string;
+  password?: string;
+  requiresPassword?: boolean;
 }
 
 export type EstadoObra = 'PLANIFICACION' | 'EN_EJECUCION' | 'PARALIZADA' | 'FINALIZADA';

@@ -47,12 +47,17 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<UserRole>('TECNICO_CAMPO');
+  const [newUserPassword, setNewUserPassword] = useState('');
 
   if (!isOpen) return null;
 
   const handleCreateUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserName.trim() || !newUserEmail.trim()) return;
+    if (!newUserPassword.trim()) {
+      alert('Los nuevos usuarios deben tener una contraseña asignada.');
+      return;
+    }
 
     const initials = newUserName
       .split(' ')
@@ -66,10 +71,13 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
       email: newUserEmail.trim().toLowerCase(),
       role: newUserRole,
       avatar: initials || 'US',
+      password: newUserPassword.trim(),
+      requiresPassword: true,
     });
 
     setNewUserName('');
     setNewUserEmail('');
+    setNewUserPassword('');
     setShowAddUserForm(false);
   };
 
@@ -217,9 +225,9 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                     <Plus className="w-4 h-4 text-sky-600" /> Registrar Nuevo Usuario en el Equipo
                   </h4>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Nombre Completo</label>
+                      <label className="block font-semibold text-slate-700 mb-1">Nombre Completo *</label>
                       <input
                         type="text"
                         value={newUserName}
@@ -231,7 +239,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Correo Electrónico</label>
+                      <label className="block font-semibold text-slate-700 mb-1">Correo Electrónico *</label>
                       <input
                         type="email"
                         value={newUserEmail}
@@ -243,7 +251,19 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Rango / Rol Asignado</label>
+                      <label className="block font-semibold text-slate-700 mb-1">Contraseña Obligatoria *</label>
+                      <input
+                        type="password"
+                        value={newUserPassword}
+                        onChange={(e) => setNewUserPassword(e.target.value)}
+                        placeholder="Contraseña de acceso"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Rango / Rol Asignado *</label>
                       <select
                         value={newUserRole}
                         onChange={(e) => setNewUserRole(e.target.value as UserRole)}

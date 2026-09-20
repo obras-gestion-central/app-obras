@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { UserRole } from '@/types';
+import { UserRole, User } from '@/types';
 import { USUARIOS_MOCK, PERMISOS_POR_ROL } from '@/data/mockData';
 import { 
   Building2, 
@@ -15,7 +15,10 @@ import {
   Menu,
   X,
   Layers,
-  ChevronDown
+  ChevronDown,
+  Home,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -28,6 +31,9 @@ interface NavbarProps {
   onOpenAdminRoles: () => void;
   activeView: 'mapa' | 'listado';
   setActiveView: (view: 'mapa' | 'listado') => void;
+  onGoHome?: () => void;
+  onLogout?: () => void;
+  currentUser?: User;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -40,18 +46,25 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAdminRoles,
   activeView,
   setActiveView,
+  onGoHome,
+  onLogout,
+  currentUser,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const permisos = PERMISOS_POR_ROL[currentRole];
-  const currentUser = USUARIOS_MOCK.find((u) => u.role === currentRole) || USUARIOS_MOCK[0];
+  const user = currentUser || USUARIOS_MOCK.find((u) => u.role === currentRole) || USUARIOS_MOCK[0];
 
   return (
     <header className="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-40 shadow-md select-none">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
           
-          {/* Logo y título de marca */}
-          <div className="flex items-center gap-2.5">
+          {/* Logo interactivo (Botón de Inicio) */}
+          <button
+            onClick={onGoHome}
+            className="flex items-center gap-2.5 text-left hover:opacity-90 active:scale-98 transition-all"
+            title="Ir a Inicio / Mapa Principal"
+          >
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-500/20 shrink-0">
               <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
@@ -61,18 +74,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                   GEOBRAS
                 </span>
                 <span className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30 rounded-full">
-                  Gestión Geográfica
+                  Inicio
                 </span>
               </div>
               <p className="text-[10px] text-slate-400 hidden md:block -mt-0.5">
-                Seguimiento de obras en mapa, visitas GPS y documentación
+                Seguimiento de obras en mapa, visitas y expedientes
               </p>
             </div>
-          </div>
+          </button>
 
           {/* Acciones principales de la cabecera */}
           <div className="flex items-center gap-1.5 sm:gap-2.5">
             
+            {/* Botón de Inicio explícito en escritorio */}
+            <button
+              onClick={onGoHome}
+              className="hidden md:flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-smooth"
+              title="Volver al mapa de inicio"
+            >
+              <Home className="w-3.5 h-3.5 text-sky-400" />
+              <span>Inicio</span>
+            </button>
+
             {/* Alternador Mapa / Listado (Visible en pantallas medianas y grandes) */}
             <div className="hidden sm:flex bg-slate-800 p-0.5 rounded-lg items-center border border-slate-700">
               <button
@@ -169,6 +192,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>Usuarios y Roles</span>
                 </button>
               )}
+
+              {/* Botón Cerrar Sesión en Escritorio */}
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-smooth"
+                  title="Cerrar sesión / Cambiar de usuario"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {/* Botón Menú Hamburguesa en Móvil */}
@@ -191,11 +225,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           
           {/* Info de sesión y permisos */}
           <div className="flex items-center justify-between p-2.5 bg-slate-800/80 rounded-xl border border-slate-700 text-xs">
-            <div>
-              <div className="font-semibold text-slate-200">{currentUser.name}</div>
-              <div className="text-[10px] text-slate-400">{currentUser.email}</div>
+            <div className="min-w-0 pr-2">
+              <div className="font-semibold text-slate-200 truncate">{user.name}</div>
+              <div className="text-[10px] text-slate-400 font-mono truncate">{user.email}</div>
             </div>
-            <div>
+            <div className="shrink-0">
               {!permisos.verDatosEconomicos ? (
                 <span className="flex items-center gap-1 text-[10px] text-amber-400 font-semibold bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-800/50">
                   <EyeOff className="w-3 h-3" /> Sin datos económicos
@@ -211,6 +245,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Opciones del menú móvil */}
           <div className="grid grid-cols-1 gap-1.5 text-xs">
             
+            {/* Volver a Inicio */}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onGoHome?.();
+              }}
+              className="w-full flex items-center gap-2.5 p-2.5 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-xl border border-slate-700 text-left font-medium transition-smooth"
+            >
+              <Home className="w-4 h-4 text-sky-400" />
+              <span>Ir a Inicio (Mapa Principal)</span>
+            </button>
+
             {/* Gestión de Usuarios y Roles (Solo ADMIN) */}
             {currentRole === 'ADMIN' && (
               <button
@@ -260,6 +306,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {deletedCount} pendientes
                   </span>
                 )}
+              </button>
+            )}
+
+            {/* Cerrar Sesión en Móvil */}
+            {onLogout && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onLogout();
+                }}
+                className="w-full flex items-center gap-2.5 p-2.5 bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 rounded-xl border border-rose-800/40 text-left font-medium transition-smooth mt-1"
+              >
+                <LogOut className="w-4 h-4 text-rose-400" />
+                <span>Cerrar Sesión / Cambiar Usuario</span>
               </button>
             )}
 

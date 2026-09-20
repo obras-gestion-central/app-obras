@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Obra, VisitaReport, Documento, FotoGPS, TimelineEvent, TaxonomyItem, UserRole, EstadoObra, User, PermisosRol } from '@/types';
 import { 
   OBRAS_MOCK, 
@@ -23,6 +23,7 @@ import { DossierModal } from '@/components/DossierModal';
 import { TrashBinModal } from '@/components/TrashBinModal';
 import { NuevaObraModal } from '@/components/NuevaObraModal';
 import { AdminUsersRolesModal } from '@/components/AdminUsersRolesModal';
+import { LoginModal } from '@/components/LoginModal';
 
 import { 
   Building2, 
@@ -44,7 +45,11 @@ import {
   Filter,
   Layers,
   Map as MapIcon,
-  Maximize2
+  Maximize2,
+  Home,
+  LogOut,
+  Shield,
+  User as UserIcon
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -60,8 +65,22 @@ export default function HomePage() {
   const [users, setUsers] = useState<User[]>(USUARIOS_MOCK);
   const [permisosRoles, setPermisosRoles] = useState<Record<UserRole, PermisosRol>>(PERMISOS_POR_ROL);
 
-  // Rol activo (RBAC interactivo)
-  const [currentRole, setCurrentRole] = useState<UserRole>('ADMIN');
+  // Sesión y Autenticación de Usuario
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('geobras_user_session');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+    }
+    return USUARIOS_MOCK[0]; // Laura Gómez (Directora - ADMIN) por defecto
+  });
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // Rol activo (RBAC interactivo derivado de la sesión)
+  const [currentRole, setCurrentRole] = useState<UserRole>(currentUser?.role || 'ADMIN');
   const [selectedObraId, setSelectedObraId] = useState<string>('obr-1');
   const [activeTabDetail, setActiveTabDetail] = useState<'timeline' | 'visitas' | 'fotos' | 'documentos'>('timeline');
   const [activeView, setActiveView] = useState<'mapa' | 'listado'>('mapa');
@@ -81,12 +100,50 @@ export default function HomePage() {
   const [showNuevaObraModal, setShowNuevaObraModal] = useState(false);
   const [showAdminRolesModal, setShowAdminRolesModal] = useState(false);
 
-  const currentUser = users.find((u) => u.role === currentRole) || users[0];
   const permisos = permisosRoles[currentRole];
+
+  // Sincronizar el rol cuando cambia el usuario de sesión
+  useEffect(() => {
+    if (currentUser) {
+      setCurrentRole(currentUser.role);
+    }
+  }, [currentUser]);
+
+  // Handlers de Login y Logout
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+    setCurrentRole(user.role);
+    setShowLoginModal(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('geobras_user_session', JSON.stringify(user));
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setShowLoginModal(true);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('geobras_user_session');
+    }
+  };
+
+  const handleGoHome = () => {
+    setActiveView('mapa');
+    setMobileExpedienteOpen(false);
+    setMobileSheetDismissed(false);
+  };
 
   // Handlers para administración de usuarios y permisos
   const handleUpdateUserRole = (userId: string, newRole: UserRole) => {
     setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
+    if (currentUser && currentUser.id === userId) {
+      const updatedUser = { ...currentUser, role: newRole };
+      setCurrentUser(updatedUser);
+      setCurrentRole(newRole);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geobras_user_session', JSON.stringify(updatedUser));
+      }
+    }
   };
 
   const handleAddUser = (newUser: Omit<User, 'id'>) => {
@@ -180,7 +237,7 @@ export default function HomePage() {
     setObras((prev) =>
       prev.map((o) =>
         o.id === obraId
-          ? { ...o, isDeleted: true, deletedAt: new Date().toLocaleTimeString('es-ES'), deletedBy: currentUser.name }
+          ? { ...o, isDeleted: true, deletedAt: new Date().toLocaleTimeString('es-ES'), deletedBy: currentUser?.name || 'Admin' }
           : o
       )
     );
@@ -208,11 +265,12 @@ export default function HomePage() {
   // Guardar nueva Visita
   const handleSaveVisita = (nuevaVisitaData: Partial<VisitaReport>) => {
     const id = `vis-${Date.now()}`;
+    const authorName = currentUser?.name || 'Técnico';
     const newVis: VisitaReport = {
       id,
       obraId: nuevaVisitaData.obraId || selectedObra?.id || '',
-      tecnicoId: currentUser.id,
-      tecnicoNombre: currentUser.name,
+      tecnicoId: currentUser?.id || 'usr-1',
+      tecnicoNombre: authorName,
       tipoVisita: nuevaVisitaData.tipoVisita || 'Seguimiento',
       lineaProducto: nuevaVisitaData.lineaProducto || '',
       fechaVisita: nuevaVisitaData.fechaVisita || new Date().toISOString().split('T')[0],
@@ -237,7 +295,7 @@ export default function HomePage() {
       eventType: 'VISITA',
       titulo: `${newVis.tipoVisita} - ${newVis.tituloResumen}`,
       descripcion: newVis.conclusiones,
-      autorNombre: currentUser.name,
+      autorNombre: authorName,
       autorRol: currentRole,
       fecha: `${newVis.fechaVisita} ${newVis.horaSalida}`,
       referenciaId: id,
@@ -255,6 +313,7 @@ export default function HomePage() {
   // Guardar nueva Obra
   const handleSaveObra = (nuevaObraData: Partial<Obra>) => {
     const id = `obr-${Date.now()}`;
+    const authorName = currentUser?.name || 'Admin';
     const newOb: Obra = {
       id,
       codigo: nuevaObraData.codigo || `OBR-2026-${Math.floor(Math.random() * 900) + 100}`,
@@ -268,8 +327,8 @@ export default function HomePage() {
       estado: nuevaObraData.estado || 'PLANIFICACION',
       fechaInicio: nuevaObraData.fechaInicio || new Date().toISOString().split('T')[0],
       fechaFinPrevista: nuevaObraData.fechaFinPrevista || '2026-12-31',
-      responsableId: currentUser.id,
-      responsableNombre: currentUser.name,
+      responsableId: nuevaObraData.responsableId || currentUser?.id || 'usr-1',
+      responsableNombre: nuevaObraData.responsableNombre || authorName,
       lineaProductoPrincipal: nuevaObraData.lineaProductoPrincipal || 'Climatización y Aerotermia',
       tipoObra: nuevaObraData.tipoObra || 'Residencial Multifamiliar',
       presupuestoAdjudicacion: nuevaObraData.presupuestoAdjudicacion || 0,
@@ -287,8 +346,8 @@ export default function HomePage() {
       obraId: id,
       eventType: 'CREACION',
       titulo: 'Expediente dado de alta',
-      descripcion: `Obra registrada por ${currentUser.name} con código ${newOb.codigo}.`,
-      autorNombre: currentUser.name,
+      descripcion: `Obra registrada por ${authorName} con código ${newOb.codigo}. Responsable: ${newOb.responsableNombre}`,
+      autorNombre: authorName,
       autorRol: currentRole,
       fecha: new Date().toLocaleString('es-ES'),
     };
@@ -299,6 +358,7 @@ export default function HomePage() {
   const handleUploadDocumento = (docData: Partial<Documento>) => {
     if (!selectedObra) return;
     const id = `doc-${Date.now()}`;
+    const authorName = currentUser?.name || 'Técnico';
     const newDoc: Documento = {
       id,
       obraId: selectedObra.id,
@@ -309,7 +369,7 @@ export default function HomePage() {
       urlDescarga: '#',
       importeAsociado: docData.importeAsociado,
       fechaDocumento: docData.fechaDocumento || new Date().toISOString().split('T')[0],
-      subidoPor: currentUser.name,
+      subidoPor: authorName,
       notas: docData.notas,
     };
 
@@ -325,7 +385,7 @@ export default function HomePage() {
       eventType,
       titulo: `${newDoc.categoria}: ${newDoc.nombreArchivo}`,
       descripcion: newDoc.notas || 'Documento adjuntado al expediente.',
-      autorNombre: currentUser.name,
+      autorNombre: authorName,
       autorRol: currentRole,
       fecha: new Date().toLocaleString('es-ES'),
       referenciaId: id,
@@ -338,6 +398,7 @@ export default function HomePage() {
   const handleAddFoto = (fotoData: Partial<FotoGPS>) => {
     if (!selectedObra) return;
     const id = `fot-${Date.now()}`;
+    const authorName = currentUser?.name || 'Técnico';
     const newFoto: FotoGPS = {
       id,
       obraId: selectedObra.id,
@@ -348,7 +409,7 @@ export default function HomePage() {
       lng: fotoData.lng || selectedObra.lng,
       altitud: fotoData.altitud || 650,
       fechaCaptura: fotoData.fechaCaptura || new Date().toLocaleString('es-ES'),
-      subidoPor: currentUser.name,
+      subidoPor: authorName,
       distanciaMetrosAObra: fotoData.distanciaMetrosAObra || 5,
     };
 
@@ -360,7 +421,7 @@ export default function HomePage() {
       eventType: 'FOTO_GPS',
       titulo: `Foto GPS: ${newFoto.titulo}`,
       descripcion: `Coordenadas extraídas: ${newFoto.lat.toFixed(5)}, ${newFoto.lng.toFixed(5)} (${newFoto.distanciaMetrosAObra}m de la obra).`,
-      autorNombre: currentUser.name,
+      autorNombre: authorName,
       autorRol: currentRole,
       fecha: new Date().toLocaleString('es-ES'),
     };
@@ -385,7 +446,7 @@ export default function HomePage() {
   const totalFotos = fotos.filter((f) => !f.isDeleted).length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100 font-sans select-none overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-slate-100 font-sans select-none overflow-hidden pb-14 sm:pb-0">
       
       {/* 1. Barra de Navegación Compacta */}
       <Navbar
@@ -398,6 +459,9 @@ export default function HomePage() {
         onOpenAdminRoles={() => setShowAdminRolesModal(true)}
         activeView={activeView}
         setActiveView={setActiveView}
+        onGoHome={handleGoHome}
+        onLogout={handleLogout}
+        currentUser={currentUser || undefined}
       />
 
       {/* 2. Panel de Indicadores KPI (Visible ÚNICAMENTE en Escritorio para no estorbar en móviles) */}
@@ -450,7 +514,7 @@ export default function HomePage() {
       </div>
 
       {/* 3. Contenedor Principal Adaptativo */}
-      <main className="flex-1 w-full h-[calc(100dvh-56px)] sm:h-[calc(100dvh-64px)] lg:h-[calc(100vh-140px)] flex flex-col relative overflow-hidden">
+      <main className="flex-1 w-full h-[calc(100dvh-112px)] sm:h-[calc(100dvh-64px)] lg:h-[calc(100vh-140px)] flex flex-col relative overflow-hidden">
         
         {/* ============================================================== */}
         {/* VISTA MÓVIL (< lg): MAPA CENTRAL A PANTALLA COMPLETA O LISTADO */}
@@ -514,7 +578,7 @@ export default function HomePage() {
 
               {/* Bottom Sheet Táctil (Tarjeta Resumen Deslizante al Tocar una Obra) */}
               {selectedObra && !mobileSheetDismissed && (
-                <div className="absolute bottom-14 left-2.5 right-2.5 z-30 bg-white/98 backdrop-blur-md rounded-2xl p-3.5 shadow-2xl border border-slate-200/90 animate-in slide-in-from-bottom-5 duration-200">
+                <div className="absolute bottom-16 left-2.5 right-2.5 z-30 bg-white/98 backdrop-blur-md rounded-2xl p-3.5 shadow-2xl border border-slate-200/90 animate-in slide-in-from-bottom-5 duration-200">
                   
                   {/* Tirador y cabecera de la tarjeta */}
                   <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -548,6 +612,12 @@ export default function HomePage() {
                   <h3 className="font-bold text-slate-900 text-xs line-clamp-1 mb-1">
                     {selectedObra.titulo}
                   </h3>
+
+                  {/* Responsable de la obra */}
+                  <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1.5">
+                    <UserIcon className="w-3 h-3 text-indigo-600 shrink-0" />
+                    <span>Responsable: <strong className="text-slate-800">{selectedObra.responsableNombre}</strong></span>
+                  </div>
 
                   {/* Barra de progreso y presupuesto */}
                   <div className="flex items-center justify-between text-[10px] text-slate-500 mb-2.5">
@@ -601,7 +671,6 @@ export default function HomePage() {
                 </div>
               )}
 
-
             </div>
           )}
 
@@ -648,7 +717,7 @@ export default function HomePage() {
               </div>
 
               {/* Lista Scrollable de Obras */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 pb-20">
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 pb-24">
                 {activeObras.length === 0 ? (
                   <div className="py-12 text-center text-slate-400 text-xs">
                     No se encontraron obras con el criterio seleccionado.
@@ -688,7 +757,11 @@ export default function HomePage() {
                           <span>{obra.municipio} • {obra.lineaProductoPrincipal}</span>
                         </p>
 
-                        <div className="mt-2.5 flex items-center justify-between text-[10px] text-slate-400 pt-2 border-t border-slate-100">
+                        <div className="mt-1 text-[10px] text-indigo-700 font-medium">
+                          Responsable: {obra.responsableNombre}
+                        </div>
+
+                        <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-100">
                           <span>Avance: <strong>{obra.porcentajeAvance}%</strong></span>
                           {permisos.verDatosEconomicos ? (
                             <span className="text-emerald-700 font-semibold">{formatCurrency(obra.presupuestoAdjudicacion)}</span>
@@ -701,36 +774,13 @@ export default function HomePage() {
                   })
                 )}
               </div>
+
             </div>
           )}
 
-          {/* Alternador Flotante Inferior Unificado (Móvil) */}
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
-            <div className="bg-slate-900/90 backdrop-blur-md text-white px-1 py-1 rounded-full shadow-xl border border-slate-700 flex items-center gap-1">
-              <button
-                onClick={() => setActiveView('mapa')}
-                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-smooth ${
-                  activeView === 'mapa' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <MapIcon className="w-3.5 h-3.5" />
-                <span>Mapa</span>
-              </button>
-              <button
-                onClick={() => setActiveView('listado')}
-                className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 transition-smooth ${
-                  activeView === 'listado' ? 'bg-sky-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Lista ({activeObras.length})</span>
-              </button>
-            </div>
-          </div>
-
           {/* VISTA DESLIZABLE DE EXPEDIENTE COMPLETO EN MÓVIL */}
           {mobileExpedienteOpen && selectedObra && (
-            <div className="fixed inset-0 z-50 bg-slate-100 flex flex-col animate-in slide-in-from-bottom duration-200">
+            <div className="fixed inset-0 z-50 bg-slate-100 flex flex-col animate-in slide-in-from-bottom duration-200 pb-14 sm:pb-0">
               
               {/* Cabecera Móvil del Expediente */}
               <div className="bg-slate-900 text-white px-3 py-2.5 flex items-center justify-between border-b border-slate-800 shrink-0">
@@ -767,6 +817,15 @@ export default function HomePage() {
                     </button>
                   )}
                 </div>
+              </div>
+
+              {/* Responsable de Obra en la cabecera del expediente */}
+              <div className="bg-indigo-900 text-indigo-100 px-3 py-1.5 text-xs flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <UserIcon className="w-3.5 h-3.5 text-indigo-300" />
+                  <span>Responsable: <strong>{selectedObra.responsableNombre}</strong></span>
+                </div>
+                <span className="text-[10px] text-indigo-300">{selectedObra.lineaProductoPrincipal}</span>
               </div>
 
               {/* Pestañas de Navegación del Expediente (Scroll horizontal táctil) */}
@@ -816,7 +875,7 @@ export default function HomePage() {
               {permisos.crearVisitas && (
                 <div className="bg-white px-3 py-2 border-b border-slate-200 flex items-center justify-between shrink-0">
                   <span className="text-[11px] text-slate-500">
-                    Avance: <strong>{selectedObra.porcentajeAvance}%</strong> • {selectedObra.lineaProductoPrincipal}
+                    Avance: <strong>{selectedObra.porcentajeAvance}%</strong>
                   </span>
                   <button
                     onClick={() => setShowVisitaModal(true)}
@@ -886,7 +945,7 @@ export default function HomePage() {
                     obraLat={selectedObra.lat}
                     obraLng={selectedObra.lng}
                     onAddFoto={handleAddFoto}
-                    currentUserNombre={currentUser.name}
+                    currentUserNombre={currentUser?.name || 'Técnico'}
                   />
                 )}
 
@@ -896,7 +955,7 @@ export default function HomePage() {
                     userRole={currentRole}
                     onUploadDocumento={handleUploadDocumento}
                     onDeleteDocumento={handleSoftDeleteDocumento}
-                    currentUserNombre={currentUser.name}
+                    currentUserNombre={currentUser?.name || 'Técnico'}
                   />
                 )}
               </div>
@@ -986,6 +1045,10 @@ export default function HomePage() {
                         <span>{obra.municipio} • {obra.lineaProductoPrincipal}</span>
                       </p>
 
+                      <div className="text-[10px] text-indigo-700 font-medium mt-1">
+                        Responsable: {obra.responsableNombre}
+                      </div>
+
                       <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-100">
                         <span>Avance: <strong>{obra.porcentajeAvance}%</strong></span>
                         {permisos.verDatosEconomicos ? (
@@ -1059,21 +1122,28 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Métricas clave */}
-                <div className="grid grid-cols-4 gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs shrink-0">
+                {/* Métricas clave (incluyendo Responsable de la Obra) */}
+                <div className="grid grid-cols-5 gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs shrink-0">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-semibold">Responsable</span>
+                    <strong className="text-indigo-900 font-bold text-[11px] truncate block mt-0.5">
+                      {selectedObra.responsableNombre}
+                    </strong>
+                  </div>
+
                   <div>
                     <span className="text-[10px] text-slate-400 block font-semibold">Línea de Producto</span>
-                    <strong className="text-slate-800 text-[11px] truncate block">{selectedObra.lineaProductoPrincipal}</strong>
+                    <strong className="text-slate-800 text-[11px] truncate block mt-0.5">{selectedObra.lineaProductoPrincipal}</strong>
                   </div>
 
                   <div>
                     <span className="text-[10px] text-slate-400 block font-semibold">Tipología</span>
-                    <strong className="text-slate-800 text-[11px] truncate block">{selectedObra.tipoObra}</strong>
+                    <strong className="text-slate-800 text-[11px] truncate block mt-0.5">{selectedObra.tipoObra}</strong>
                   </div>
 
                   <div>
                     <span className="text-[10px] text-slate-400 block font-semibold">Avance Físico</span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex items-center gap-1.5 mt-1">
                       <div className="flex-1 bg-slate-200 h-1.5 rounded-full overflow-hidden">
                         <div className="bg-sky-600 h-1.5 rounded-full" style={{ width: `${selectedObra.porcentajeAvance}%` }}></div>
                       </div>
@@ -1084,9 +1154,9 @@ export default function HomePage() {
                   <div>
                     <span className="text-[10px] text-slate-400 block font-semibold">Presupuesto</span>
                     {permisos.verDatosEconomicos ? (
-                      <strong className="text-emerald-700 font-bold">{formatCurrency(selectedObra.presupuestoAdjudicacion)}</strong>
+                      <strong className="text-emerald-700 font-bold text-[11px] block mt-0.5">{formatCurrency(selectedObra.presupuestoAdjudicacion)}</strong>
                     ) : (
-                      <span className="text-amber-600 font-semibold flex items-center gap-1">
+                      <span className="text-amber-600 font-semibold flex items-center gap-1 mt-0.5">
                         <EyeOff className="w-3 h-3" /> Confidencial
                       </span>
                     )}
@@ -1199,7 +1269,7 @@ export default function HomePage() {
                       obraLat={selectedObra.lat}
                       obraLng={selectedObra.lng}
                       onAddFoto={handleAddFoto}
-                      currentUserNombre={currentUser.name}
+                      currentUserNombre={currentUser?.name || 'Técnico'}
                     />
                   )}
 
@@ -1209,7 +1279,7 @@ export default function HomePage() {
                       userRole={currentRole}
                       onUploadDocumento={handleUploadDocumento}
                       onDeleteDocumento={handleSoftDeleteDocumento}
-                      currentUserNombre={currentUser.name}
+                      currentUserNombre={currentUser?.name || 'Técnico'}
                     />
                   )}
                 </div>
@@ -1228,6 +1298,67 @@ export default function HomePage() {
       </main>
 
       {/* ============================================================== */}
+      {/* BARRA DE NAVEGACIÓN INFERIOR MÓVIL (Bottom Navigation Bar)     */}
+      {/* ============================================================== */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/98 backdrop-blur-md border-t border-slate-800 flex items-center justify-around h-14 select-none px-1 shadow-2xl">
+        <button
+          onClick={handleGoHome}
+          className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+            activeView === 'mapa' && !mobileExpedienteOpen ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Home className="w-4 h-4" />
+          <span className="text-[10px] mt-0.5">Inicio</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveView('listado');
+            setMobileExpedienteOpen(false);
+          }}
+          className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+            activeView === 'listado' && !mobileExpedienteOpen ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span className="text-[10px] mt-0.5">Obras</span>
+        </button>
+
+        {permisos.editarObras && (
+          <button
+            onClick={() => setShowNuevaObraModal(true)}
+            className="flex flex-col items-center justify-center flex-1 h-full text-white active:scale-95 transition-transform"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-500/30">
+              <Plus className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-[9px] mt-0.5 font-bold text-sky-300">Nueva</span>
+          </button>
+        )}
+
+        {currentRole === 'ADMIN' && (
+          <button
+            onClick={() => setShowAdminRolesModal(true)}
+            className="flex flex-col items-center justify-center flex-1 h-full text-purple-300 hover:text-white transition-colors"
+          >
+            <Shield className="w-4 h-4 text-purple-400" />
+            <span className="text-[10px] mt-0.5">Equipo</span>
+          </button>
+        )}
+
+        <button
+          onClick={() => setShowLoginModal(true)}
+          className="flex flex-col items-center justify-center flex-1 h-full text-slate-400 hover:text-white transition-colors"
+          title="Ver usuario o cambiar de sesión"
+        >
+          <div className="w-5 h-5 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center text-[9px] font-bold border border-slate-700">
+            {currentUser ? currentUser.avatar : '??'}
+          </div>
+          <span className="text-[10px] mt-0.5">{currentUser ? 'Perfil' : 'Entrar'}</span>
+        </button>
+      </nav>
+
+      {/* ============================================================== */}
       {/* MODALES DEL SISTEMA */}
       {/* ============================================================== */}
       
@@ -1241,7 +1372,7 @@ export default function HomePage() {
           tiposVisitaOptions={tiposVisitaOptions}
           onCreateOption={handleCreateTaxonomy}
           onSaveVisita={handleSaveVisita}
-          currentUserNombre={currentUser.name}
+          currentUserNombre={currentUser?.name || 'Técnico'}
         />
       )}
 
@@ -1269,7 +1400,7 @@ export default function HomePage() {
         onRestoreDocumento={handleRestoreDocumento}
       />
 
-      {/* 4. Modal de Nueva Obra */}
+      {/* 4. Modal de Nueva Obra (con selector de responsable y GPS asistido) */}
       <NuevaObraModal
         isOpen={showNuevaObraModal}
         onClose={() => setShowNuevaObraModal(false)}
@@ -1277,7 +1408,8 @@ export default function HomePage() {
         lineasProductoOptions={lineasProductoOptions}
         tiposObraOptions={tiposObraOptions}
         onCreateOption={handleCreateTaxonomy}
-        currentUserNombre={currentUser.name}
+        currentUserNombre={currentUser?.name || 'Administrador'}
+        users={users}
       />
 
       {/* 5. Modal de Gestión de Usuarios y Roles (SOLO ADMINISTRADOR) */}
@@ -1292,6 +1424,13 @@ export default function HomePage() {
           onTogglePermiso={handleTogglePermiso}
         />
       )}
+
+      {/* 6. Modal de Login / Autenticación */}
+      <LoginModal
+        isOpen={!currentUser || showLoginModal}
+        users={users}
+        onLogin={handleLogin}
+      />
 
     </div>
   );

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Obra, EstadoObra } from '@/types';
+import { Obra, EstadoObra, User } from '@/types';
 import { CreatableCombobox } from './CreatableCombobox';
-import { X, Building2, MapPin, Check } from 'lucide-react';
+import { GpsHelperInput } from './GpsHelperInput';
+import { X, Building2, User as UserIcon, Check } from 'lucide-react';
 
 interface NuevaObraModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface NuevaObraModalProps {
   tiposObraOptions: string[];
   onCreateOption: (category: 'LINEA_PRODUCTO' | 'TIPO_OBRA', value: string) => void;
   currentUserNombre: string;
+  users?: User[];
 }
 
 export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
@@ -23,6 +25,7 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
   tiposObraOptions,
   onCreateOption,
   currentUserNombre,
+  users = [],
 }) => {
   const [codigo, setCodigo] = useState(`OBR-2026-00${Math.floor(Math.random() * 90) + 10}`);
   const [titulo, setTitulo] = useState('');
@@ -38,7 +41,25 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
   const [fechaInicio, setFechaInicio] = useState(new Date().toISOString().split('T')[0]);
   const [fechaFin, setFechaFin] = useState('2026-12-31');
 
+  // Responsable de la obra seleccionado de la lista de usuarios
+  const initialResponsible = users.find((u) => u.name === currentUserNombre) || users[0];
+  const [responsableId, setResponsableId] = useState(initialResponsible?.id || 'usr-1');
+  const [responsableNombre, setResponsableNombre] = useState(initialResponsible?.name || currentUserNombre);
+
   if (!isOpen) return null;
+
+  const handleResponsibleChange = (selectedId: string) => {
+    setResponsableId(selectedId);
+    const found = users.find((u) => u.id === selectedId);
+    if (found) {
+      setResponsableNombre(found.name);
+    }
+  };
+
+  const handleGpsChange = (newLat: number, newLng: number) => {
+    setLat(newLat);
+    setLng(newLng);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +82,8 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
       estado: 'PLANIFICACION' as EstadoObra,
       fechaInicio,
       fechaFinPrevista: fechaFin,
-      responsableNombre: currentUserNombre,
+      responsableId,
+      responsableNombre,
       createdAt: new Date().toISOString(),
     });
 
@@ -69,30 +91,35 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-xl w-full overflow-hidden my-auto animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full overflow-hidden my-auto animate-in fade-in zoom-in-95">
         
         {/* Cabecera */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-sky-400" />
-            <h3 className="text-base font-bold">Alta de Nueva Obra en el Sistema</h3>
+        <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-sky-600 flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-white">Alta de Nueva Obra</h3>
+              <p className="text-[10px] sm:text-xs text-slate-400">Registrar nuevo expediente georreferenciado</p>
+            </div>
           </div>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-white rounded-lg">
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white rounded-lg">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto text-xs">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 max-h-[82vh] overflow-y-auto text-xs">
           
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Código de Expediente</label>
               <input
                 type="text"
                 value={codigo}
                 onChange={(e) => setCodigo(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold text-xs"
                 required
               />
             </div>
@@ -102,7 +129,7 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
                 type="number"
                 value={presupuesto}
                 onChange={(e) => setPresupuesto(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-emerald-700"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-bold text-emerald-700 text-xs"
                 required
               />
             </div>
@@ -114,10 +141,33 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
               type="text"
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Ej: Reforma y Climatización Centro Logístico Las Rozas"
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+              placeholder="Ej: Reforma y Climatización Centro Logístico"
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"
               required
             />
+          </div>
+
+          {/* Selector de Responsable de la Obra (de la lista de usuarios) */}
+          <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-200/80 space-y-1.5">
+            <label className="block font-bold text-indigo-950 text-xs flex items-center gap-1.5">
+              <UserIcon className="w-4 h-4 text-indigo-600" />
+              <span>Responsable Asignado de la Obra *</span>
+            </label>
+            <select
+              value={responsableId}
+              onChange={(e) => handleResponsibleChange(e.target.value)}
+              className="w-full px-3 py-2 bg-white border border-indigo-300 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              required
+            >
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.role.replace('_', ' ')})
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-indigo-700">
+              Esta persona figurará en los expedientes, certificados y dossieres oficiales.
+            </p>
           </div>
 
           <div>
@@ -126,8 +176,8 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
               rows={2}
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Alcance técnico del trabajo a ejecutar..."
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+              placeholder="Alcance técnico y detalles del trabajo..."
+              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"
             />
           </div>
 
@@ -152,16 +202,16 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
             />
           </div>
 
-          {/* Localización */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2">
+          {/* Dirección y Municipio */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="sm:col-span-2">
               <label className="block font-semibold text-slate-700 mb-1">Dirección Postal</label>
               <input
                 type="text"
                 value={direccion}
                 onChange={(e) => setDireccion(e.target.value)}
                 placeholder="Calle, número o polígono"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"
                 required
               />
             </div>
@@ -171,37 +221,19 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
                 type="text"
                 value={municipio}
                 onChange={(e) => setMunicipio(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"
                 required
               />
             </div>
           </div>
 
-          {/* Coordenadas GPS */}
-          <div className="grid grid-cols-2 gap-3 p-3 bg-sky-50 rounded-xl border border-sky-200">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Latitud GPS</label>
-              <input
-                type="number"
-                step="0.0001"
-                value={lat}
-                onChange={(e) => setLat(Number(e.target.value))}
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-mono"
-                required
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Longitud GPS</label>
-              <input
-                type="number"
-                step="0.0001"
-                value={lng}
-                onChange={(e) => setLng(Number(e.target.value))}
-                className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-mono"
-                required
-              />
-            </div>
-          </div>
+          {/* ASISTENTE FÁCIL DE COORDENADAS GPS (Zero conocimientos técnicos) */}
+          <GpsHelperInput
+            lat={lat}
+            lng={lng}
+            onChange={handleGpsChange}
+            municipio={municipio}
+          />
 
           {/* Fechas */}
           <div className="grid grid-cols-2 gap-3">
@@ -211,7 +243,7 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
                 type="date"
                 value={fechaInicio}
                 onChange={(e) => setFechaInicio(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"
                 required
               />
             </div>
@@ -221,7 +253,7 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
                 type="date"
                 value={fechaFin}
                 onChange={(e) => setFechaFin(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs"
                 required
               />
             </div>
@@ -231,13 +263,13 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold"
+              className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold text-xs"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md flex items-center gap-1.5"
+              className="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md flex items-center gap-1.5 text-xs"
             >
               <Check className="w-4 h-4" /> Dar de Alta Obra
             </button>
