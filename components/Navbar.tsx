@@ -18,7 +18,8 @@ import {
   ChevronDown,
   Home,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  Tag
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -29,6 +30,7 @@ interface NavbarProps {
   onOpenNewObra: () => void;
   onExportExcel: () => void;
   onOpenAdminRoles: () => void;
+  onOpenTaxonomias?: () => void;
   activeView: 'mapa' | 'listado';
   setActiveView: (view: 'mapa' | 'listado') => void;
   onGoHome?: () => void;
@@ -44,6 +46,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewObra,
   onExportExcel,
   onOpenAdminRoles,
+  onOpenTaxonomias,
   activeView,
   setActiveView,
   onGoHome,
@@ -95,6 +98,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Home className="w-3.5 h-3.5 text-sky-400" />
               <span>Inicio</span>
             </button>
+
+            {/* Botón Gestor de Vocabulario y Conceptos */}
+            {onOpenTaxonomias && (
+              <button
+                onClick={onOpenTaxonomias}
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-smooth border border-slate-700/60"
+                title="Editar personalmente motivos de visita, especialidades y tipos de obra"
+              >
+                <Tag className="w-3.5 h-3.5 text-amber-400" />
+                <span>Conceptos</span>
+              </button>
+            )}
 
             {/* Alternador Mapa / Listado (Visible solo en tablet/móvil horizontal; oculto en PC lg: ya que conviven al 50% en paralelo) */}
             <div className="hidden sm:flex lg:hidden bg-slate-800 p-0.5 rounded-lg items-center border border-slate-700">
@@ -271,6 +286,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span>Gestión de Usuarios y Permisos</span>
                 </div>
                 <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">Admin</span>
+              </button>
+            )}
+
+            {/* Gestión de Conceptos y Vocabulario */}
+            {onOpenTaxonomias && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onOpenTaxonomias();
+                }}
+                className="w-full flex items-center justify-between p-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-xl border border-slate-700 text-left font-medium transition-smooth"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Tag className="w-4 h-4 text-amber-400" />
+                  <span>Vocabulario y Conceptos Personalizados</span>
+                </div>
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">Editar</span>
               </button>
             )}
 

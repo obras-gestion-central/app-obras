@@ -15,6 +15,7 @@ interface NuevaObraModalProps {
   onCreateOption: (category: 'LINEA_PRODUCTO' | 'TIPO_OBRA', value: string) => void;
   currentUserNombre: string;
   users?: User[];
+  onOpenManageTaxonomias?: (category: 'LINEA_PRODUCTO' | 'TIPO_OBRA') => void;
 }
 
 export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
@@ -26,6 +27,7 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
   onCreateOption,
   currentUserNombre,
   users = [],
+  onOpenManageTaxonomias,
 }) => {
   const [codigo, setCodigo] = useState(`OBR-2026-00${Math.floor(Math.random() * 90) + 10}`);
   const [titulo, setTitulo] = useState('');
@@ -189,6 +191,7 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
               value={lineaProducto}
               onChange={setLineaProducto}
               onCreateOption={(v) => onCreateOption('LINEA_PRODUCTO', v)}
+              onManage={onOpenManageTaxonomias ? () => onOpenManageTaxonomias('LINEA_PRODUCTO') : undefined}
               required
             />
 
@@ -198,6 +201,7 @@ export const NuevaObraModal: React.FC<NuevaObraModalProps> = ({
               value={tipoObra}
               onChange={setTipoObra}
               onCreateOption={(v) => onCreateOption('TIPO_OBRA', v)}
+              onManage={onOpenManageTaxonomias ? () => onOpenManageTaxonomias('TIPO_OBRA') : undefined}
               required
             />
           </div>

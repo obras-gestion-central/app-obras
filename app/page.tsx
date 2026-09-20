@@ -24,6 +24,7 @@ import { TrashBinModal } from '@/components/TrashBinModal';
 import { NuevaObraModal } from '@/components/NuevaObraModal';
 import { AdminUsersRolesModal } from '@/components/AdminUsersRolesModal';
 import { LoginModal } from '@/components/LoginModal';
+import { TaxonomiasModal, CategoriaTaxonomia } from '@/components/TaxonomiasModal';
 
 import { 
   Building2, 
@@ -59,7 +60,19 @@ export default function HomePage() {
   const [documentos, setDocumentos] = useState<Documento[]>(DOCUMENTOS_MOCK);
   const [fotos, setFotos] = useState<FotoGPS[]>(FOTOS_GPS_MOCK);
   const [timeline, setTimeline] = useState<TimelineEvent[]>(TIMELINE_MOCK);
-  const [taxonomias, setTaxonomias] = useState<TaxonomyItem[]>(TAXONOMIAS_INICIALES);
+  const [taxonomias, setTaxonomias] = useState<TaxonomyItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('geobras_taxonomias');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {}
+      }
+    }
+    return TAXONOMIAS_INICIALES;
+  });
+  const [showTaxonomiasModal, setShowTaxonomiasModal] = useState(false);
+  const [taxonomiasModalCategory, setTaxonomiasModalCategory] = useState<CategoriaTaxonomia>('TIPO_VISITA');
 
   // Usuarios y Matriz de Permisos Dinámica
   const [users, setUsers] = useState<User[]>(USUARIOS_MOCK);
@@ -194,13 +207,85 @@ export default function HomePage() {
     ])
   );
 
-  const handleCreateTaxonomy = (category: 'LINEA_PRODUCTO' | 'TIPO_OBRA' | 'TIPO_VISITA', value: string) => {
+  const handleOpenTaxonomias = (cat: CategoriaTaxonomia = 'TIPO_VISITA') => {
+    setTaxonomiasModalCategory(cat);
+    setShowTaxonomiasModal(true);
+  };
+
+  const handleAddTaxonomia = (category: CategoriaTaxonomia, value: string) => {
     const newItem: TaxonomyItem = {
       id: `tax-${Date.now()}`,
       categoria: category,
       valor: value,
     };
-    setTaxonomias((prev) => [...prev, newItem]);
+    setTaxonomias((prev) => {
+      const updated = [...prev, newItem];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geobras_taxonomias', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const handleUpdateTaxonomia = (
+    id: string,
+    oldValue: string,
+    newValue: string,
+    category: CategoriaTaxonomia
+  ) => {
+    // 1. Actualizar en lista de taxonomías y guardar en localStorage
+    setTaxonomias((prev) => {
+      const updated = prev.map((t) => (t.id === id ? { ...t, valor: newValue } : t));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geobras_taxonomias', JSON.stringify(updated));
+      }
+      return updated;
+    });
+
+    // 2. Cascada: actualizar registros existentes para conservar coherencia
+    if (category === 'TIPO_VISITA') {
+      setVisitas((prev) =>
+        prev.map((v) => (v.tipoVisita === oldValue ? { ...v, tipoVisita: newValue } : v))
+      );
+    } else if (category === 'LINEA_PRODUCTO') {
+      setObras((prev) =>
+        prev.map((o) =>
+          o.lineaProductoPrincipal === oldValue
+            ? { ...o, lineaProductoPrincipal: newValue }
+            : o
+        )
+      );
+      setVisitas((prev) =>
+        prev.map((v) =>
+          v.lineaProducto === oldValue ? { ...v, lineaProducto: newValue } : v
+        )
+      );
+    } else if (category === 'TIPO_OBRA') {
+      setObras((prev) =>
+        prev.map((o) => (o.tipoObra === oldValue ? { ...o, tipoObra: newValue } : o))
+      );
+    }
+  };
+
+  const handleDeleteTaxonomia = (id: string) => {
+    setTaxonomias((prev) => {
+      const updated = prev.filter((t) => t.id !== id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geobras_taxonomias', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const handleResetTaxonomias = () => {
+    setTaxonomias(TAXONOMIAS_INICIALES);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('geobras_taxonomias');
+    }
+  };
+
+  const handleCreateTaxonomy = (category: 'LINEA_PRODUCTO' | 'TIPO_OBRA' | 'TIPO_VISITA', value: string) => {
+    handleAddTaxonomia(category, value);
   };
 
   // Obras activas filtradas
@@ -462,6 +547,7 @@ export default function HomePage() {
         onOpenNewObra={() => setShowNuevaObraModal(true)}
         onExportExcel={handleExportExcel}
         onOpenAdminRoles={() => setShowAdminRolesModal(true)}
+        onOpenTaxonomias={() => handleOpenTaxonomias('TIPO_VISITA')}
         activeView={activeView}
         setActiveView={setActiveView}
         onGoHome={handleGoHome}
@@ -1460,6 +1546,7 @@ export default function HomePage() {
           onSaveVisita={handleSaveVisita}
           currentUserNombre={currentUser?.name || 'Técnico'}
           users={users}
+          onOpenManageTaxonomias={handleOpenTaxonomias}
         />
       )}
 
@@ -1497,6 +1584,7 @@ export default function HomePage() {
         onCreateOption={handleCreateTaxonomy}
         currentUserNombre={currentUser?.name || 'Administrador'}
         users={users}
+        onOpenManageTaxonomias={handleOpenTaxonomias}
       />
 
       {/* 5. Modal de Gestión de Usuarios y Roles (SOLO ADMINISTRADOR) */}
@@ -1517,6 +1605,18 @@ export default function HomePage() {
         isOpen={!currentUser || showLoginModal}
         users={users}
         onLogin={handleLogin}
+      />
+
+      {/* 7. Modal de Gestión Personal de Vocabulario y Taxonomías */}
+      <TaxonomiasModal
+        isOpen={showTaxonomiasModal}
+        onClose={() => setShowTaxonomiasModal(false)}
+        initialCategory={taxonomiasModalCategory}
+        taxonomias={taxonomias}
+        onAdd={handleAddTaxonomia}
+        onUpdate={handleUpdateTaxonomia}
+        onDelete={handleDeleteTaxonomia}
+        onResetDefaults={handleResetTaxonomias}
       />
 
     </div>

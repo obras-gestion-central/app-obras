@@ -27,6 +27,7 @@ interface VisitaModalProps {
   onSaveVisita: (visita: Partial<VisitaReport>) => void;
   currentUserNombre: string;
   users?: User[];
+  onOpenManageTaxonomias?: (category: 'TIPO_VISITA' | 'LINEA_PRODUCTO') => void;
 }
 
 export const VisitaModal: React.FC<VisitaModalProps> = ({
@@ -39,6 +40,7 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
   onSaveVisita,
   currentUserNombre,
   users = [],
+  onOpenManageTaxonomias,
 }) => {
   const [tecnicoNombre, setTecnicoNombre] = useState<string>(currentUserNombre);
   const [tipoVisita, setTipoVisita] = useState<string>('Seguimiento Periódico de Avance');
@@ -208,6 +210,7 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
               value={tipoVisita}
               onChange={setTipoVisita}
               onCreateOption={(newVal) => onCreateOption('TIPO_VISITA', newVal)}
+              onManage={onOpenManageTaxonomias ? () => onOpenManageTaxonomias('TIPO_VISITA') : undefined}
               required
             />
 
@@ -217,6 +220,7 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
               value={lineaProducto}
               onChange={setLineaProducto}
               onCreateOption={(newVal) => onCreateOption('LINEA_PRODUCTO', newVal)}
+              onManage={onOpenManageTaxonomias ? () => onOpenManageTaxonomias('LINEA_PRODUCTO') : undefined}
               required
             />
           </div>

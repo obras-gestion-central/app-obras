@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Plus, Check } from 'lucide-react';
+import { ChevronDown, Plus, Check, Tag } from 'lucide-react';
 
 interface CreatableComboboxProps {
   label: string;
@@ -11,6 +11,7 @@ interface CreatableComboboxProps {
   onCreateOption: (newOption: string) => void;
   placeholder?: string;
   required?: boolean;
+  onManage?: () => void;
 }
 
 export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
@@ -21,6 +22,7 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
   onCreateOption,
   placeholder = 'Buscar o crear...',
   required = false,
+  onManage,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -62,9 +64,24 @@ export const CreatableCombobox: React.FC<CreatableComboboxProps> = ({
 
   return (
     <div className="relative" ref={containerRef}>
-      <label className="block text-xs font-semibold text-slate-700 mb-1">
-        {label} {required && <span className="text-rose-500">*</span>}
-      </label>
+      <div className="flex items-center justify-between mb-1">
+        {label && (
+          <label className="block text-xs font-semibold text-slate-700">
+            {label} {required && <span className="text-rose-500">*</span>}
+          </label>
+        )}
+        {onManage && (
+          <button
+            type="button"
+            onClick={onManage}
+            className="text-[10px] text-sky-600 hover:text-sky-800 font-bold flex items-center gap-1 transition-colors hover:underline"
+            title="Editar personalmente estos conceptos"
+          >
+            <Tag className="w-3 h-3 text-amber-500" />
+            <span>Personalizar</span>
+          </button>
+        )}
+      </div>
 
       {/* Input / Botón Desplegable */}
       <div
