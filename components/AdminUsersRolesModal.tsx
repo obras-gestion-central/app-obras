@@ -9,14 +9,13 @@ import {
   Check, 
   X, 
   UserCheck, 
-  UserX, 
   Eye, 
   EyeOff, 
   Sliders, 
-  Lock, 
-  FileSpreadsheet, 
   Trash2, 
-  FileText 
+  FileSpreadsheet, 
+  FileText,
+  ChevronDown
 } from 'lucide-react';
 
 interface AdminUsersRolesModalProps {
@@ -40,6 +39,9 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'usuarios' | 'permisos'>('usuarios');
   
+  // Para la vista móvil de permisos: rol actualmente seleccionado
+  const [selectedMobileRole, setSelectedMobileRole] = useState<UserRole>('ADMIN');
+
   // Estado para nuevo usuario
   const [showAddUserForm, setShowAddUserForm] = useState(false);
   const [newUserName, setNewUserName] = useState('');
@@ -71,18 +73,18 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
     setShowAddUserForm(false);
   };
 
-  const rolesList: { id: UserRole; name: string; badgeColor: string }[] = [
-    { id: 'ADMIN', name: 'Administrador', badgeColor: 'bg-purple-100 text-purple-800 border-purple-200' },
-    { id: 'JEFE_OBRA', name: 'Jefe de Obra', badgeColor: 'bg-sky-100 text-sky-800 border-sky-200' },
-    { id: 'TECNICO_CAMPO', name: 'Técnico de Campo', badgeColor: 'bg-amber-100 text-amber-800 border-amber-200' },
-    { id: 'CONSULTOR_EXTERNO', name: 'Consultor Externo', badgeColor: 'bg-slate-100 text-slate-800 border-slate-200' },
+  const rolesList: { id: UserRole; name: string; shortName: string; badgeColor: string; emoji: string }[] = [
+    { id: 'ADMIN', name: 'Administrador', shortName: 'Admin', badgeColor: 'bg-purple-100 text-purple-800 border-purple-200', emoji: '👑' },
+    { id: 'JEFE_OBRA', name: 'Jefe de Obra', shortName: 'Jefe Obra', badgeColor: 'bg-sky-100 text-sky-800 border-sky-200', emoji: '👷' },
+    { id: 'TECNICO_CAMPO', name: 'Técnico de Campo', shortName: 'Técnico', badgeColor: 'bg-amber-100 text-amber-800 border-amber-200', emoji: '🔍' },
+    { id: 'CONSULTOR_EXTERNO', name: 'Consultor Externo', shortName: 'Consultor', badgeColor: 'bg-slate-100 text-slate-800 border-slate-200', emoji: '📊' },
   ];
 
   const permisosDefinicion: { key: keyof PermisosRol; label: string; desc: string; icon: any }[] = [
     { 
       key: 'verDatosEconomicos', 
       label: 'Visibilidad Económica Completa', 
-      desc: 'Acceso a presupuestos de obra, certificados y facturas de proveedores',
+      desc: 'Acceso a presupuestos de obra, importes ejecutados y facturación',
       icon: Eye
     },
     { 
@@ -130,19 +132,19 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full flex flex-col max-h-[90vh] overflow-hidden my-auto animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-xs sm:p-4 overflow-y-auto">
+      <div className="bg-white sm:rounded-2xl shadow-2xl border border-slate-200 w-full sm:max-w-4xl h-[100dvh] sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden my-auto animate-in fade-in zoom-in-95">
         
         {/* Cabecera del Panel */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-sky-600 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-xl bg-purple-600 flex items-center justify-center shadow-md shadow-purple-600/30 shrink-0">
+              <Shield className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="text-base font-bold">Dashboard de Usuarios, Roles y Visibilidad</h3>
-              <p className="text-[11px] text-slate-400">
-                Gestiona compañeros, asigna rangos y configura qué puede ver cada perfil
+              <h3 className="text-sm sm:text-base font-bold text-white leading-tight">Usuarios, Roles y Permisos</h3>
+              <p className="text-[10px] sm:text-xs text-slate-400">
+                Administración de equipo y control de acceso RBAC
               </p>
             </div>
           </div>
@@ -150,70 +152,72 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
           <button
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            aria-label="Cerrar ventana"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Pestañas de Navegación del Panel */}
-        <div className="px-6 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="px-3 sm:px-6 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               onClick={() => setActiveTab('usuarios')}
-              className={`py-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
+              className={`py-2.5 sm:py-3 px-3 sm:px-4 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
                 activeTab === 'usuarios'
                   ? 'border-sky-600 text-sky-700 bg-white shadow-2xs'
                   : 'border-transparent text-slate-600 hover:text-slate-900'
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>Equipo de Usuarios ({users.length})</span>
+              <span>Equipo ({users.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('permisos')}
-              className={`py-3 px-4 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
+              className={`py-2.5 sm:py-3 px-3 sm:px-4 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
                 activeTab === 'permisos'
                   ? 'border-sky-600 text-sky-700 bg-white shadow-2xs'
                   : 'border-transparent text-slate-600 hover:text-slate-900'
               }`}
             >
               <Sliders className="w-4 h-4" />
-              <span>Matriz de Visibilidad y Permisos por Rol</span>
+              <span>Permisos por Rol</span>
             </button>
           </div>
 
           {activeTab === 'usuarios' && (
             <button
               onClick={() => setShowAddUserForm(!showAddUserForm)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-lg shadow-2xs transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-xs transition-colors shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Añadir Compañero</span>
+              <span className="hidden xs:inline sm:inline">Añadir Compañero</span>
+              <span className="xs:hidden sm:hidden">Añadir</span>
             </button>
           )}
         </div>
 
         {/* Contenido del Panel */}
-        <div className="p-6 overflow-y-auto flex-1 bg-slate-50 space-y-4">
+        <div className="p-3 sm:p-6 overflow-y-auto flex-1 bg-slate-50 space-y-4">
           
           {/* ==================================================== */}
           {/* PESTAÑA 1: GESTIÓN DE USUARIOS Y ASIGNACIÓN DE ROLES */}
           {/* ==================================================== */}
           {activeTab === 'usuarios' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               
               {/* Formulario desplegable para dar de alta nuevo usuario */}
               {showAddUserForm && (
                 <form
                   onSubmit={handleCreateUserSubmit}
-                  className="bg-white p-4 rounded-xl border border-sky-300 shadow-sm space-y-3 animate-in fade-in"
+                  className="bg-white p-3.5 sm:p-4 rounded-2xl border border-sky-300 shadow-sm space-y-3 animate-in fade-in"
                 >
                   <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                     <Plus className="w-4 h-4 text-sky-600" /> Registrar Nuevo Usuario en el Equipo
                   </h4>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">Nombre Completo</label>
                       <input
@@ -221,7 +225,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                         value={newUserName}
                         onChange={(e) => setNewUserName(e.target.value)}
                         placeholder="Ej: Raúl Navarro (Ingeniero)"
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500"
                         required
                       />
                     </div>
@@ -233,7 +237,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                         value={newUserEmail}
                         onChange={(e) => setNewUserEmail(e.target.value)}
                         placeholder="raul.navarro@empresa.com"
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500"
                         required
                       />
                     </div>
@@ -243,7 +247,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                       <select
                         value={newUserRole}
                         onChange={(e) => setNewUserRole(e.target.value as UserRole)}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg font-medium"
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:outline-none focus:ring-1 focus:ring-sky-500"
                       >
                         <option value="TECNICO_CAMPO">🔍 Técnico de Campo (Sin $)</option>
                         <option value="JEFE_OBRA">👷 Jefe de Obra</option>
@@ -257,13 +261,13 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowAddUserForm(false)}
-                      className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg"
+                      className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-xl"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-lg"
+                      className="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl"
                     >
                       Guardar y Asignar Rol
                     </button>
@@ -271,8 +275,67 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                 </form>
               )}
 
-              {/* Listado de Usuarios */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+              {/* VISTA MÓVIL: TARJETAS RESPONSIVE DE USUARIOS (< sm) */}
+              <div className="sm:hidden space-y-2.5">
+                {users.map((u) => {
+                  const rolPerm = permisosRoles[u.role];
+                  return (
+                    <div
+                      key={u.id}
+                      className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2.5"
+                    >
+                      {/* Cabecera del usuario */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                            {u.avatar}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-900 text-xs truncate">{u.name}</div>
+                            <div className="text-[10px] text-slate-500 font-mono truncate">{u.email}</div>
+                          </div>
+                        </div>
+
+                        {/* Estado económico */}
+                        <div className="shrink-0">
+                          {rolPerm.verDatosEconomicos ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                              <Eye className="w-2.5 h-2.5" /> Con $
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1">
+                              <EyeOff className="w-2.5 h-2.5" /> Sin $
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Selector de Rol táctil de ancho completo */}
+                      <div className="pt-2 border-t border-slate-100">
+                        <label className="block text-[10px] font-semibold text-slate-500 mb-1">
+                          Modificar Rol / Rango de este usuario:
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={u.role}
+                            onChange={(e) => onUpdateUserRole(u.id, e.target.value as UserRole)}
+                            className="w-full text-xs font-bold py-2 pl-3 pr-8 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 appearance-none cursor-pointer"
+                          >
+                            <option value="ADMIN">👑 Administrador (Acceso Total)</option>
+                            <option value="JEFE_OBRA">👷 Jefe de Obra (Gestión Integral)</option>
+                            <option value="TECNICO_CAMPO">🔍 Técnico de Campo (Sin Datos Financieros)</option>
+                            <option value="CONSULTOR_EXTERNO">📊 Consultor Externo (Lectura)</option>
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-500 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* VISTA ESCRITORIO: TABLA COMPLETA (>= sm) */}
+              <div className="hidden sm:block bg-white rounded-2xl border border-slate-200 overflow-x-auto shadow-xs">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
@@ -347,17 +410,84 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
           {/* PESTAÑA 2: MATRIZ DE VISIBILIDAD Y PERMISOS CONFIGURABLE POR ROL */}
           {/* ================================================================= */}
           {activeTab === 'permisos' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               
-              <div className="p-3.5 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900 flex items-start gap-2.5">
+              <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-900 flex items-start gap-2">
                 <Sliders className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  <strong>Control Granular en Vivo:</strong> Marca o desmarca las casillas para conceder o revocar permisos a cada rol. Cualquier cambio se aplica <strong>en tiempo real</strong> en toda la aplicación (ocultando importes, menús, botones de borrado o formularios de visita).
+                <p className="leading-relaxed text-[11px] sm:text-xs">
+                  <strong>Control Granular en Vivo:</strong> Cualquier casilla activada o desactivada modifica inmediatamente lo que puede ver o hacer ese rol en toda la aplicación.
                 </p>
               </div>
 
-              {/* Tabla Matriz */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+              {/* VISTA MÓVIL: SELECTOR DE ROL Y LISTA DE PERMISOS (< sm) */}
+              <div className="sm:hidden space-y-3">
+                
+                {/* Selector de rol con píldoras horizontales táctiles */}
+                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-1">
+                  {rolesList.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => setSelectedMobileRole(r.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all flex items-center gap-1 ${
+                        selectedMobileRole === r.id
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-white border border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <span>{r.emoji}</span>
+                      <span>{r.shortName}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Lista de permisos con conmutador táctil para el rol seleccionado */}
+                <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 shadow-xs overflow-hidden">
+                  {permisosDefinicion.map((item) => {
+                    const IconComp = item.icon;
+                    const isChecked = permisosRoles[selectedMobileRole][item.key];
+                    return (
+                      <div
+                        key={item.key}
+                        onClick={() => onTogglePermiso(selectedMobileRole, item.key)}
+                        className="p-3 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="flex items-start gap-2.5 min-w-0">
+                          <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${isChecked ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-400'}`}>
+                            <IconComp className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <strong className="text-xs font-bold text-slate-900 block leading-tight">{item.label}</strong>
+                            <span className="text-[10px] text-slate-500 block leading-tight mt-0.5">{item.desc}</span>
+                          </div>
+                        </div>
+
+                        {/* Toggle switch visual táctil */}
+                        <div
+                          className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-0.5 shrink-0 ${
+                            isChecked ? 'bg-emerald-600' : 'bg-slate-300'
+                          }`}
+                        >
+                          <div
+                            className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform flex items-center justify-center ${
+                              isChecked ? 'translate-x-5' : 'translate-x-0'
+                            }`}
+                          >
+                            {isChecked ? (
+                              <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                            ) : (
+                              <X className="w-3 h-3 text-slate-400" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
+
+              {/* VISTA ESCRITORIO: TABLA MATRIZ COMPLETA (>= sm) */}
+              <div className="hidden sm:block bg-white rounded-2xl border border-slate-200 overflow-x-auto shadow-xs">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100 border-b border-slate-200 text-slate-700 font-bold uppercase text-[10px]">
@@ -420,12 +550,12 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
 
         </div>
 
-        {/* Pie */}
-        <div className="p-4 bg-white border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
-          <span>Los cambios se guardan y aplican instantáneamente en la interfaz.</span>
+        {/* Pie del Panel */}
+        <div className="p-3 sm:p-4 bg-white border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500 shrink-0">
+          <span className="hidden sm:inline">Los cambios se guardan y aplican instantáneamente en la interfaz.</span>
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-xs transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-xs transition-colors text-center"
           >
             Listo / Cerrar
           </button>
