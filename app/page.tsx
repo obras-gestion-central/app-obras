@@ -91,7 +91,8 @@ export default function HomePage() {
     }
     return USUARIOS_MOCK[0]; // Laura Gómez (Directora - ADMIN) por defecto
   });
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  // Pantalla de inicio obligatoria por defecto al cargar la app
+  const [showLoginModal, setShowLoginModal] = useState(true);
 
   // Rol activo (RBAC interactivo derivado de la sesión)
   const [currentRole, setCurrentRole] = useState<UserRole>(currentUser?.role || 'ADMIN');
@@ -138,6 +139,13 @@ export default function HomePage() {
     setShowLoginModal(true);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('geobras_user_session');
+    }
+  };
+
+  const handleCloseLoginModal = () => {
+    setShowLoginModal(false);
+    if (!currentUser) {
+      setCurrentUser(USUARIOS_MOCK[0]);
     }
   };
 
@@ -1674,11 +1682,12 @@ export default function HomePage() {
         />
       )}
 
-      {/* 6. Modal de Login / Autenticación */}
+      {/* 6. Modal de Login / Autenticación (Página de Inicio) */}
       <LoginModal
-        isOpen={!currentUser || showLoginModal}
+        isOpen={showLoginModal}
         users={users}
         onLogin={handleLogin}
+        onClose={handleCloseLoginModal}
       />
 
       {/* 7. Modal de Gestión Personal de Vocabulario y Taxonomías */}

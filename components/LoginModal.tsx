@@ -1,23 +1,37 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '@/types';
-import { Building2, Shield, Lock, ArrowRight, UserCheck, AlertCircle } from 'lucide-react';
+import { Building2, Shield, Lock, ArrowRight, UserCheck, AlertCircle, X } from 'lucide-react';
 
 interface LoginModalProps {
   isOpen: boolean;
   users: User[];
   onLogin: (user: User) => void;
+  onClose?: () => void;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   users,
   onLogin,
+  onClose,
 }) => {
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Permitir cerrar con la tecla Escape
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -59,11 +73,30 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto select-none">
+    <div 
+      onClick={(e) => {
+        if (e.target === e.currentTarget && onClose) {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto select-none"
+    >
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden my-auto animate-in fade-in zoom-in-95">
         
         {/* Cabecera de bienvenida */}
         <div className="px-6 py-6 bg-slate-900 text-white text-center border-b border-slate-800 relative">
+          {onClose && (
+            <button
+              onClick={onClose}
+              type="button"
+              className="absolute top-3.5 right-3.5 flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/90 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95"
+              title="Cerrar ventana y entrar al mapa"
+              aria-label="Cerrar ventana"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Cerrar</span>
+            </button>
+          )}
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-indigo-600 mx-auto flex items-center justify-center shadow-lg shadow-sky-500/30 mb-3">
             <Building2 className="w-7 h-7 text-white" />
           </div>
@@ -189,6 +222,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+
+          {/* Botón para abandonar o cerrar la ventana */}
+          {onClose && (
+            <div className="pt-2 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 hover:text-slate-950 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs border border-slate-200"
+                title="Abandonar inicio de sesión y acceder al mapa"
+              >
+                <X className="w-4 h-4 text-slate-500" />
+                <span>Abandonar / Cerrar ventana (Ir al Mapa)</span>
+              </button>
+            </div>
+          )}
 
         </div>
 
