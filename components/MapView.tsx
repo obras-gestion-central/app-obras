@@ -1,0 +1,334 @@
+'use client';
+
+import React, { useEffect, useRef, useState } from 'react';
+import { Obra, FotoGPS, UserRole } from '@/types';
+import { PERMISOS_POR_ROL } from '@/data/mockData';
+import { formatCurrency } from '@/lib/utils';
+import { Layers, MapPin, Camera, Maximize2, Compass } from 'lucide-react';
+
+interface MapViewProps {
+  obras: Obra[];
+  fotos: FotoGPS[];
+  selectedObraId: string | null;
+  onSelectObra: (id: string) => void;
+  userRole: UserRole;
+  isPickingLocation?: boolean;
+  onLocationPicked?: (lat: number, lng: number) => void;
+}
+
+export const MapView: React.FC<MapViewProps> = ({
+  obras,
+  fotos,
+  selectedObraId,
+  onSelectObra,
+  userRole,
+  isPickingLocation = false,
+  onLocationPicked,
+}) => {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markersLayerRef = useRef<any>(null);
+  const photosLayerRef = useRef<any>(null);
+  const streetLayerRef = useRef<any>(null);
+  const satelliteLayerRef = useRef<any>(null);
+
+  const [activeLayer, setActiveLayer] = useState<'street' | 'satellite'>('street');
+  const [showPhotoPins, setShowPhotoPins] = useState(true);
+  const [isLeafletReady, setIsLeafletReady] = useState(false);
+
+  const permisos = PERMISOS_POR_ROL[userRole];
+
+  // Carga e inicialización de Leaflet en el cliente
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let isMounted = true;
+
+    const initMap = async () => {
+      const L = (await import('leaflet')).default;
+
+      if (!isMounted || !mapContainerRef.current) return;
+
+      if (!mapInstanceRef.current) {
+        // Centro inicial en el centro geográfico de las obras simuladas (Madrid y alrededores)
+        const map = L.map(mapContainerRef.current, {
+          center: [40.4412, -3.7005],
+          zoom: 11,
+          zoomControl: false,
+        });
+
+        // Capa Callejero Gratuita (OpenStreetMap)
+        const streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors',
+        });
+
+        // Capa Satelital Gratuita de Alta Definición (Esri World Imagery)
+        const satelliteLayer = L.tileLayer(
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+          {
+            maxZoom: 19,
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+          }
+        );
+
+        streetLayer.addTo(map);
+        streetLayerRef.current = streetLayer;
+        satelliteLayerRef.current = satelliteLayer;
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        const markersLayer = L.layerGroup().addTo(map);
+        const photosLayer = L.layerGroup().addTo(map);
+
+        markersLayerRef.current = markersLayer;
+        photosLayerRef.current = photosLayer;
+        mapInstanceRef.current = map;
+
+        setIsLeafletReady(true);
+      }
+    };
+
+    initMap();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Cambio de capa Callejero <-> Satélite
+  useEffect(() => {
+    if (!mapInstanceRef.current || !streetLayerRef.current || !satelliteLayerRef.current) return;
+
+    const map = mapInstanceRef.current;
+    if (activeLayer === 'satellite') {
+      map.removeLayer(streetLayerRef.current);
+      satelliteLayerRef.current.addTo(map);
+    } else {
+      map.removeLayer(satelliteLayerRef.current);
+      streetLayerRef.current.addTo(map);
+    }
+  }, [activeLayer]);
+
+  // Renderizado de chinchetas de obras y fotos
+  useEffect(() => {
+    if (!isLeafletReady || !mapInstanceRef.current || !markersLayerRef.current) return;
+
+    const renderMarkers = async () => {
+      const L = (await import('leaflet')).default;
+      const markersLayer = markersLayerRef.current;
+      const photosLayer = photosLayerRef.current;
+
+      markersLayer.clearLayers();
+      photosLayer.clearLayers();
+
+      const validObras = obras.filter((o) => !o.isDeleted);
+
+      validObras.forEach((obra) => {
+        // Color según estado
+        let colorClass = 'bg-emerald-600 border-emerald-300';
+        if (obra.estado === 'PLANIFICACION') colorClass = 'bg-sky-600 border-sky-300';
+        if (obra.estado === 'PARALIZADA') colorClass = 'bg-rose-600 border-rose-300';
+        if (obra.estado === 'FINALIZADA') colorClass = 'bg-slate-600 border-slate-300';
+
+        const isSelected = obra.id === selectedObraId;
+
+        const iconHtml = `
+          <div class="relative flex items-center justify-center cursor-pointer transition-transform duration-200 ${isSelected ? 'scale-125 z-50' : 'hover:scale-110'}">
+            <div class="w-8 h-8 rounded-full ${colorClass} text-white flex items-center justify-center shadow-lg border-2">
+              <span class="text-[10px] font-black tracking-tighter">${obra.codigo.split('-')[2] || 'OB'}</span>
+            </div>
+            ${isSelected ? '<div class="absolute -inset-1 rounded-full border-2 border-amber-400 animate-ping opacity-75"></div>' : ''}
+          </div>
+        `;
+
+        const customIcon = L.divIcon({
+          html: iconHtml,
+          className: 'custom-map-pin',
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+          popupAnchor: [0, -18],
+        });
+
+        const marker = L.marker([obra.lat, obra.lng], { icon: customIcon });
+
+        // Contenido del Popup informativo
+        const popupContent = document.createElement('div');
+        popupContent.className = 'p-1 text-slate-800 text-xs font-sans min-w-[220px]';
+        popupContent.innerHTML = `
+          <div class="font-bold text-sm text-slate-900 mb-0.5">${obra.titulo}</div>
+          <div class="text-[11px] text-slate-500 font-mono mb-2">${obra.codigo} • ${obra.municipio}</div>
+          <div class="mb-2">
+            <div class="flex justify-between text-[11px] font-semibold text-slate-700 mb-1">
+              <span>Avance Físico</span>
+              <span>${obra.porcentajeAvance}%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+              <div class="bg-sky-600 h-1.5 rounded-full" style="width: ${obra.porcentajeAvance}%"></div>
+            </div>
+          </div>
+          <div class="text-[11px] text-slate-600 mb-1">
+            <strong>Línea:</strong> ${obra.lineaProductoPrincipal}
+          </div>
+          ${
+            permisos.verDatosEconomicos
+              ? `<div class="text-[11px] text-emerald-700 font-semibold mb-2">Presupuesto: ${formatCurrency(obra.presupuestoAdjudicacion)}</div>`
+              : ''
+          }
+          <button id="btn-popup-${obra.id}" class="w-full mt-2 py-1.5 px-3 bg-sky-600 hover:bg-sky-700 text-white font-medium rounded text-xs text-center transition-colors">
+            Ver Ficha Completa
+          </button>
+        `;
+
+        marker.bindPopup(popupContent);
+
+        marker.on('popupopen', () => {
+          const btn = document.getElementById(`btn-popup-${obra.id}`);
+          if (btn) {
+            btn.onclick = () => {
+              onSelectObra(obra.id);
+            };
+          }
+        });
+
+        marker.on('click', () => {
+          onSelectObra(obra.id);
+        });
+
+        markersLayer.addLayer(marker);
+      });
+
+      // Renderizar fotos geolocalizadas si la capa está activa
+      if (showPhotoPins) {
+        fotos.forEach((foto) => {
+          const photoIconHtml = `
+            <div class="w-6 h-6 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-md border border-white hover:scale-125 transition-transform" title="${foto.titulo}">
+              <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 9a3 3 0 100 6 3 3 0 000-6zm-7 9a1 1 0 01-1-1V8a1 1 0 011-1h2.268a2 2 0 001.664-.89l.812-1.22A2 2 0 0111.408 4h1.184a2 2 0 011.664.89l.812 1.22A2 2 0 0016.732 7H19a1 1 0 011 1v9a1 1 0 01-1 1H5z"/></svg>
+            </div>
+          `;
+
+          const photoIcon = L.divIcon({
+            html: photoIconHtml,
+            className: 'photo-pin',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          });
+
+          const pMarker = L.marker([foto.lat, foto.lng], { icon: photoIcon });
+          pMarker.bindPopup(`
+            <div class="text-xs p-1 text-slate-800">
+              <img src="${foto.miniaturaUrl}" class="w-full h-24 object-cover rounded mb-1" />
+              <div class="font-bold">${foto.titulo}</div>
+              <div class="text-[10px] text-slate-500">Tomada: ${foto.fechaCaptura}</div>
+              <div class="text-[10px] text-amber-600 font-semibold">Distancia a obra: ${foto.distanciaMetrosAObra || 0}m</div>
+            </div>
+          `);
+          photosLayer.addLayer(pMarker);
+        });
+      }
+
+      // Si hay una obra seleccionada, centrar mapa en ella
+      if (selectedObraId) {
+        const selected = validObras.find((o) => o.id === selectedObraId);
+        if (selected) {
+          mapInstanceRef.current.setView([selected.lat, selected.lng], 14, { animate: true });
+        }
+      }
+    };
+
+    renderMarkers();
+  }, [isLeafletReady, obras, fotos, selectedObraId, showPhotoPins, permisos.verDatosEconomicos, onSelectObra]);
+
+  const handleCenterAll = () => {
+    if (!mapInstanceRef.current || obras.length === 0) return;
+    const validObras = obras.filter((o) => !o.isDeleted);
+    if (validObras.length === 0) return;
+
+    import('leaflet').then((L) => {
+      const bounds = L.default.latLngBounds(validObras.map((o) => [o.lat, o.lng]));
+      mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], animate: true });
+    });
+  };
+
+  return (
+    <div className="relative w-full h-full rounded-2xl overflow-hidden shadow-inner border border-slate-200 bg-slate-100">
+      {/* Contenedor DOM para Leaflet */}
+      <div ref={mapContainerRef} className="w-full h-full z-0" />
+
+      {/* Barra de Controles Flotantes del Mapa */}
+      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2">
+        
+        {/* Selector Callejero / Satélite */}
+        <div className="bg-white/95 backdrop-blur-md rounded-xl p-1 shadow-lg border border-slate-200/80 flex flex-col gap-1">
+          <button
+            onClick={() => setActiveLayer('street')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-2 transition-smooth ${
+              activeLayer === 'street'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span>Callejero OSM</span>
+          </button>
+
+          <button
+            onClick={() => setActiveLayer('satellite')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-2 transition-smooth ${
+              activeLayer === 'satellite'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Satélite Esri (Gratis)</span>
+          </button>
+        </div>
+
+        {/* Alternar Fotos GPS */}
+        <button
+          onClick={() => setShowPhotoPins(!showPhotoPins)}
+          className={`p-2 rounded-xl shadow-lg border transition-smooth flex items-center justify-center gap-1.5 text-xs font-semibold ${
+            showPhotoPins
+              ? 'bg-amber-500 text-slate-950 border-amber-400'
+              : 'bg-white/95 text-slate-700 hover:bg-slate-100 border-slate-200'
+          }`}
+          title="Mostrar u ocultar fotos georreferenciadas a pie de obra"
+        >
+          <Camera className="w-4 h-4" />
+          <span className="hidden sm:inline">Fotos GPS</span>
+        </button>
+
+        {/* Re-centrar en todas las obras */}
+        <button
+          onClick={handleCenterAll}
+          className="p-2 bg-white/95 hover:bg-slate-100 text-slate-700 rounded-xl shadow-lg border border-slate-200 transition-smooth flex items-center justify-center gap-1.5 text-xs font-semibold"
+          title="Ajustar vista a todas las obras"
+        >
+          <Maximize2 className="w-4 h-4" />
+          <span className="hidden sm:inline">Encuadrar</span>
+        </button>
+      </div>
+
+      {/* Leyenda en la esquina inferior izquierda */}
+      <div className="absolute bottom-4 left-4 z-20 bg-white/90 backdrop-blur-md px-3 py-2 rounded-xl shadow-md border border-slate-200/80 text-[11px] text-slate-600 flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+          <span>En Ejecución</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-sky-600"></span>
+          <span>Planificación</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-600"></span>
+          <span>Paralizada</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+          <span>Foto GPS</span>
+        </div>
+      </div>
+    </div>
+  );
+};
