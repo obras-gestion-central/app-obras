@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Obra, VisitaReport, CheckItem, EstadoObra, User } from '@/types';
+import React, { useState, useRef } from 'react';
+import { Obra, VisitaReport, CheckItem, EstadoObra, User, FotoGPS } from '@/types';
 import { CreatableCombobox } from './CreatableCombobox';
 import { 
   X, 
@@ -15,8 +15,19 @@ import {
   AlertTriangle,
   Users,
   UserCheck,
-  Calendar
+  Calendar,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
+
+interface AttachedFotoItem {
+  id: string;
+  url: string;
+  titulo: string;
+  lat: number;
+  lng: number;
+  distanciaMetrosAObra?: number;
+}
 
 interface VisitaModalProps {
   isOpen: boolean;
@@ -25,7 +36,7 @@ interface VisitaModalProps {
   lineasProductoOptions: string[];
   tiposVisitaOptions: string[];
   onCreateOption: (category: 'LINEA_PRODUCTO' | 'TIPO_VISITA', value: string) => void;
-  onSaveVisita: (visita: Partial<VisitaReport>) => void;
+  onSaveVisita: (visita: Partial<VisitaReport>, attachedFotos?: Partial<FotoGPS>[]) => void;
   currentUserNombre: string;
   users?: User[];
   onOpenManageTaxonomias?: (category: 'TIPO_VISITA' | 'LINEA_PRODUCTO') => void;
@@ -52,7 +63,7 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
   
   // GPS a pie de obra
   const [gpsCaptured, setGpsCaptured] = useState<{ lat: number; lng: number } | null>({
-    lat: obra.lat + (Math.random() - 0.5) * 0.0002, // Simulación realista de estar al lado de la obra
+    lat: obra.lat + (Math.random() - 0.5) * 0.0002,
     lng: obra.lng + (Math.random() - 0.5) * 0.0002,
   });
   const [gpsStatus, setGpsStatus] = useState<string>('GPS Validado (a 8m de la obra)');
@@ -60,6 +71,11 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
   const [tituloResumen, setTituloResumen] = useState<string>('');
   const [conclusiones, setConclusiones] = useState<string>('');
   const [estadoResultante, setEstadoResultante] = useState<EstadoObra>(obra.estado);
+
+  // Fotografías adjuntas a la visita
+  const [attachedFotos, setAttachedFotos] = useState<AttachedFotoItem[]>([]);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Lista dinámica de puntos de control (Checklist)
   const [checklist, setChecklist] = useState<CheckItem[]>([
@@ -71,6 +87,77 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Utilidad para comprimir la imagen en Canvas para optimizar memoria
+  const compressImage = (dataUrl: string, maxWidth = 1280, maxHeight = 1280, quality = 0.82): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } else {
+          resolve(dataUrl);
+        }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
+
+  const handleAttachPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const rawUrl = event.target?.result as string;
+      const compressed = await compressImage(rawUrl);
+
+      const lat = gpsCaptured?.lat || obra.lat;
+      const lng = gpsCaptured?.lng || obra.lng;
+
+      const newFoto: AttachedFotoItem = {
+        id: `visfoto-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        url: compressed,
+        titulo: file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ') || 'Fotografía de visita',
+        lat,
+        lng,
+        distanciaMetrosAObra: 5,
+      };
+
+      setAttachedFotos((prev) => [...prev, newFoto]);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemoveAttachedFoto = (id: string) => {
+    setAttachedFotos((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const handleUpdateFotoTitle = (id: string, newTitle: string) => {
+    setAttachedFotos((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, titulo: newTitle } : f))
+    );
+  };
+
   const handleCaptureGPS = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -79,7 +166,6 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
           setGpsStatus('GPS Capturado con éxito desde dispositivo móvil');
         },
         () => {
-          // Fallback con simulación en la posición de la obra
           setGpsCaptured({ lat: obra.lat, lng: obra.lng });
           setGpsStatus('GPS asignado a las coordenadas oficiales de la obra');
         }
@@ -94,7 +180,6 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
     setChecklist((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
-        // Ciclo: true -> false -> null -> true
         let next: boolean | null = false;
         if (current === true) next = false;
         else if (current === false) next = null;
@@ -128,26 +213,39 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
       return;
     }
 
-    onSaveVisita({
-      obraId: obra.id,
-      tecnicoNombre: tecnicoNombre || currentUserNombre,
-      registradoPorNombre: currentUserNombre,
-      registradoEn: new Date().toISOString(),
-      tipoVisita,
-      lineaProducto,
-      fechaVisita,
-      horaEntrada,
-      horaSalida,
-      lat: gpsCaptured?.lat,
-      lng: gpsCaptured?.lng,
-      gpsVerificado: true,
-      tituloResumen,
-      conclusiones,
-      estadoResultante,
-      checklist,
-      fotosIds: [],
-      documentosIds: [],
-    });
+    const fotosToSave: Partial<FotoGPS>[] = attachedFotos.map((af) => ({
+      titulo: af.titulo.trim() || 'Fotografía de visita',
+      url: af.url,
+      miniaturaUrl: af.url,
+      lat: af.lat,
+      lng: af.lng,
+      altitud: 650,
+      distanciaMetrosAObra: af.distanciaMetrosAObra || 5,
+    }));
+
+    onSaveVisita(
+      {
+        obraId: obra.id,
+        tecnicoNombre: tecnicoNombre || currentUserNombre,
+        registradoPorNombre: currentUserNombre,
+        registradoEn: new Date().toISOString(),
+        tipoVisita,
+        lineaProducto,
+        fechaVisita,
+        horaEntrada,
+        horaSalida,
+        lat: gpsCaptured?.lat,
+        lng: gpsCaptured?.lng,
+        gpsVerificado: true,
+        tituloResumen,
+        conclusiones,
+        estadoResultante,
+        checklist,
+        fotosIds: [],
+        documentosIds: [],
+      },
+      fotosToSave
+    );
 
     onClose();
   };
@@ -156,6 +254,23 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-150">
         
+        {/* Inputs ocultos para fotos con cámara o galería */}
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          ref={cameraInputRef}
+          onChange={handleAttachPhoto}
+          className="hidden"
+        />
+        <input
+          type="file"
+          accept="image/*"
+          ref={fileInputRef}
+          onChange={handleAttachPhoto}
+          className="hidden"
+        />
+
         {/* Cabecera del Modal */}
         <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
           <div>
@@ -194,7 +309,7 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
               {users && users.length > 0 ? (
                 users.map((u) => (
                   <option key={u.id} value={u.name}>
-                    {u.name} — {u.role.replace('_', ' ')}
+                    {u.name} — {u.role.replace(/_/g, ' ')}
                   </option>
                 ))
               ) : (
@@ -237,7 +352,6 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              {/* Fecha de Visita */}
               <div className="sm:col-span-1">
                 <label className="block text-[11px] font-semibold text-slate-600 mb-1">Fecha</label>
                 <input
@@ -249,7 +363,6 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
                 />
               </div>
 
-              {/* Horas agrupadas lado a lado */}
               <div className="grid grid-cols-2 gap-2 sm:col-span-2">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-600 mb-1 flex items-center gap-1">
@@ -313,7 +426,7 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
               value={tituloResumen}
               onChange={(e) => setTituloResumen(e.target.value)}
               placeholder="Ej: Prueba hidráulica de climatización y revisión de aislamiento"
-              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 font-medium"
               required
             />
           </div>
@@ -357,7 +470,6 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
               ))}
             </div>
 
-            {/* Añadir nueva pregunta al checklist */}
             <div className="flex gap-2">
               <input
                 type="text"
@@ -377,7 +489,72 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
             </div>
           </div>
 
-          {/* Fila 6: Conclusiones */}
+          {/* Fila 6: Fotografías In Situ adjuntas a la visita */}
+          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-amber-500" />
+                  <span>Fotografías Tomadas en la Visita</span>
+                </label>
+                <p className="text-[10px] text-slate-500">
+                  Captura fotos con la cámara o súbelas para vincularlas a este informe
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg shadow-xs transition-smooth"
+                  title="Tomar foto con la cámara del dispositivo"
+                >
+                  <Camera className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Cámara</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1 px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 transition-smooth"
+                  title="Seleccionar foto desde la galería o disco"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-sky-600" />
+                  <span>Galería</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Listado de miniaturas de fotos adjuntas */}
+            {attachedFotos.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                {attachedFotos.map((af) => (
+                  <div key={af.id} className="relative bg-white rounded-xl border border-slate-200 p-1.5 shadow-2xs group">
+                    <div className="aspect-4/3 rounded-lg overflow-hidden bg-slate-100 mb-1.5 relative">
+                      <img src={af.url} alt={af.titulo} className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAttachedFoto(af.id)}
+                        className="absolute top-1 right-1 p-1 bg-slate-900/80 hover:bg-rose-600 text-white rounded-md transition-colors"
+                        title="Quitar fotografía"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={af.titulo}
+                      onChange={(e) => handleUpdateFotoTitle(af.id, e.target.value)}
+                      placeholder="Pie de foto..."
+                      className="w-full text-[11px] px-1.5 py-0.5 border border-slate-200 rounded focus:outline-none focus:border-sky-500 font-medium text-slate-800"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Fila 7: Conclusiones */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Conclusiones Técnicas e Incidencias Detectadas
@@ -391,7 +568,7 @@ export const VisitaModal: React.FC<VisitaModalProps> = ({
             />
           </div>
 
-          {/* Fila 7: Estado resultante de la obra */}
+          {/* Fila 8: Estado resultante de la obra */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Estado de la Obra tras la Visita

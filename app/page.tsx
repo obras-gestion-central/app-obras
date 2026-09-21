@@ -483,11 +483,51 @@ export default function HomePage() {
     });
   };
 
-  // Guardar nueva Visita con persistencia
-  const handleSaveVisita = (nuevaVisitaData: Partial<VisitaReport>) => {
+  // Guardar nueva Visita con soporte de fotografías adjuntas y persistencia
+  const handleSaveVisita = (
+    nuevaVisitaData: Partial<VisitaReport>,
+    attachedFotos: Partial<FotoGPS>[] = []
+  ) => {
     const id = `vis-${Date.now()}`;
     const authorName = currentUser?.name || 'Técnico';
     const assignedTecnico = nuevaVisitaData.tecnicoNombre || authorName;
+
+    // Procesar y registrar fotos adjuntas tomadas in situ
+    const createdFotoIds: string[] = [];
+    const newFotosList: FotoGPS[] = [];
+
+    if (attachedFotos && attachedFotos.length > 0) {
+      attachedFotos.forEach((af, idx) => {
+        const fotoId = `foto-${Date.now()}-${idx}`;
+        createdFotoIds.push(fotoId);
+        const fullFoto: FotoGPS = {
+          id: fotoId,
+          obraId: nuevaVisitaData.obraId || selectedObra?.id || '',
+          visitaId: id,
+          url: af.url || '',
+          miniaturaUrl: af.miniaturaUrl || af.url || '',
+          titulo: af.titulo || `Foto de visita: ${nuevaVisitaData.tipoVisita || 'Inspección'}`,
+          lat: af.lat || nuevaVisitaData.lat || selectedObra?.lat || 40.4168,
+          lng: af.lng || nuevaVisitaData.lng || selectedObra?.lng || -3.7038,
+          altitud: af.altitud || 650,
+          fechaCaptura: new Date().toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }),
+          subidoPor: assignedTecnico,
+          distanciaMetrosAObra: af.distanciaMetrosAObra || 5,
+        };
+        newFotosList.push(fullFoto);
+      });
+
+      setFotos((prev) => {
+        const updated = [...newFotosList, ...prev];
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('geobras_fotos_list', JSON.stringify(updated));
+          } catch {}
+        }
+        return updated;
+      });
+    }
+
     const newVis: VisitaReport = {
       id,
       obraId: nuevaVisitaData.obraId || selectedObra?.id || '',
@@ -507,7 +547,7 @@ export default function HomePage() {
       conclusiones: nuevaVisitaData.conclusiones || '',
       estadoResultante: nuevaVisitaData.estadoResultante || selectedObra?.estado || 'EN_EJECUCION',
       checklist: nuevaVisitaData.checklist || [],
-      fotosIds: nuevaVisitaData.fotosIds || [],
+      fotosIds: createdFotoIds,
       documentosIds: nuevaVisitaData.documentosIds || [],
     };
 
@@ -521,12 +561,13 @@ export default function HomePage() {
       return updated;
     });
 
+    const fotoSnippet = createdFotoIds.length > 0 ? ` (Incluye ${createdFotoIds.length} foto${createdFotoIds.length > 1 ? 's' : ''} con GPS)` : '';
     const newTl: TimelineEvent = {
       id: `tl-${Date.now()}`,
       obraId: newVis.obraId,
       eventType: 'VISITA',
       titulo: `${newVis.tipoVisita} - ${newVis.tituloResumen}`,
-      descripcion: `Visita realizada por ${assignedTecnico}. Conclusiones: ${newVis.conclusiones}`,
+      descripcion: `Visita realizada por ${assignedTecnico}. Conclusiones: ${newVis.conclusiones}${fotoSnippet}`,
       autorNombre: authorName,
       autorRol: currentRole,
       fecha: `${newVis.fechaVisita} ${newVis.horaSalida}`,
