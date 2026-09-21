@@ -208,14 +208,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
-              {/* Botón Cerrar Sesión en Escritorio */}
+              {/* Botón Cerrar / Iniciar Sesión en Escritorio */}
               {onLogout && (
                 <button
                   onClick={onLogout}
                   className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-smooth"
-                  title="Cerrar sesión / Cambiar de usuario"
+                  title={currentUser ? `Cerrar sesión (${currentUser.name})` : "Iniciar sesión"}
                 >
-                  <LogOut className="w-4 h-4" />
+                  {currentUser ? <LogOut className="w-4 h-4" /> : <UserIcon className="w-4 h-4" />}
                 </button>
               )}
             </div>

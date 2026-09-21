@@ -55,11 +55,55 @@ import {
 } from 'lucide-react';
 
 export default function HomePage() {
-  // Estado Principal
-  const [obras, setObras] = useState<Obra[]>(OBRAS_MOCK);
-  const [visitas, setVisitas] = useState<VisitaReport[]>(VISITAS_MOCK);
-  const [documentos, setDocumentos] = useState<Documento[]>(DOCUMENTOS_MOCK);
-  const [fotos, setFotos] = useState<FotoGPS[]>(FOTOS_GPS_MOCK);
+  // Estado Principal con Persistencia Local
+  const [obras, setObras] = useState<Obra[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('geobras_obras_list');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+    }
+    return OBRAS_MOCK;
+  });
+  const [visitas, setVisitas] = useState<VisitaReport[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('geobras_visitas_list');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+    }
+    return VISITAS_MOCK;
+  });
+  const [documentos, setDocumentos] = useState<Documento[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('geobras_documentos_list');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+    }
+    return DOCUMENTOS_MOCK;
+  });
+  const [fotos, setFotos] = useState<FotoGPS[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('geobras_fotos_list');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+    }
+    return FOTOS_GPS_MOCK;
+  });
   const [timeline, setTimeline] = useState<TimelineEvent[]>(TIMELINE_MOCK);
   const [taxonomias, setTaxonomias] = useState<TaxonomyItem[]>(() => {
     if (typeof window !== 'undefined') {
@@ -75,18 +119,33 @@ export default function HomePage() {
   const [showTaxonomiasModal, setShowTaxonomiasModal] = useState(false);
   const [taxonomiasModalCategory, setTaxonomiasModalCategory] = useState<CategoriaTaxonomia>('TIPO_VISITA');
 
-  // Usuarios y Matriz de Permisos Dinámica
-  const [users, setUsers] = useState<User[]>(USUARIOS_MOCK);
+  // Usuarios y Matriz de Permisos Dinámica con Persistencia Local
+  const [users, setUsers] = useState<User[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('geobras_users_list');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const hasDavid = parsed.some((u: User) => u.name === 'David Pérez');
+            if (hasDavid) return parsed;
+            return [...USUARIOS_MOCK, ...parsed];
+          }
+        } catch {}
+      }
+    }
+    return USUARIOS_MOCK;
+  });
   const [permisosRoles, setPermisosRoles] = useState<Record<UserRole, PermisosRol>>(PERMISOS_POR_ROL);
 
-  // Sesión y Autenticación de Usuario (Único usuario por defecto: David Pérez)
+  // Sesión y Autenticación de Usuario (Inicia cerrada / null por defecto para requerir identificación limpia)
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('geobras_user_session');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed && parsed.name === 'David Pérez') {
+          if (parsed && parsed.id) {
             return parsed;
           } else {
             localStorage.removeItem('geobras_user_session');
@@ -94,7 +153,7 @@ export default function HomePage() {
         } catch {}
       }
     }
-    return USUARIOS_MOCK[0]; // David Pérez (ADMIN) por defecto
+    return null;
   });
   // Pantalla de inicio obligatoria por defecto al cargar la app
   const [showLoginModal, setShowLoginModal] = useState(true);
@@ -149,8 +208,9 @@ export default function HomePage() {
 
   const handleCloseLoginModal = () => {
     setShowLoginModal(false);
-    if (!currentUser) {
-      setCurrentUser(USUARIOS_MOCK[0]);
+    setCurrentUser(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('geobras_user_session');
     }
   };
 
@@ -160,9 +220,15 @@ export default function HomePage() {
     setMobileSheetDismissed(false);
   };
 
-  // Handlers para administración de usuarios y permisos
+  // Handlers para administración de usuarios y permisos con persistencia en localStorage
   const handleUpdateUserRole = (userId: string, newRole: UserRole) => {
-    setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
+    setUsers((prev) => {
+      const updated = prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geobras_users_list', JSON.stringify(updated));
+      }
+      return updated;
+    });
     if (currentUser && currentUser.id === userId) {
       const updatedUser = { ...currentUser, role: newRole };
       setCurrentUser(updatedUser);
@@ -178,7 +244,30 @@ export default function HomePage() {
       ...newUser,
       id: `usr-${Date.now()}`,
     };
-    setUsers((prev) => [...prev, created]);
+    setUsers((prev) => {
+      const updated = [...prev, created];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geobras_users_list', JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    if (userId === 'usr-1') {
+      alert('No es posible eliminar al Administrador principal.');
+      return;
+    }
+    setUsers((prev) => {
+      const updated = prev.filter((u) => u.id !== userId);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geobras_users_list', JSON.stringify(updated));
+      }
+      return updated;
+    });
+    if (currentUser?.id === userId) {
+      handleLogout();
+    }
   };
 
   const handleTogglePermiso = (role: UserRole, permisoKey: keyof PermisosRol) => {
@@ -339,38 +428,62 @@ export default function HomePage() {
   const deletedObras = obras.filter((o) => o.isDeleted);
   const deletedDocumentos = documentos.filter((d) => d.isDeleted);
 
-  // Soft Delete y Restauración
+  // Soft Delete y Restauración con persistencia
   const handleSoftDeleteObra = (obraId: string) => {
     if (!confirm('¿Deseas enviar esta obra a la Papelera de reciclaje? Podrás restaurarla en cualquier momento.')) return;
-    setObras((prev) =>
-      prev.map((o) =>
+    setObras((prev) => {
+      const updated = prev.map((o) =>
         o.id === obraId
           ? { ...o, isDeleted: true, deletedAt: new Date().toLocaleTimeString('es-ES'), deletedBy: currentUser?.name || 'Admin' }
           : o
-      )
-    );
+      );
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_obras_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
     setMobileExpedienteOpen(false);
   };
 
   const handleRestoreObra = (obraId: string) => {
-    setObras((prev) =>
-      prev.map((o) => (o.id === obraId ? { ...o, isDeleted: false, deletedAt: undefined, deletedBy: undefined } : o))
-    );
+    setObras((prev) => {
+      const updated = prev.map((o) => (o.id === obraId ? { ...o, isDeleted: false, deletedAt: undefined, deletedBy: undefined } : o));
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_obras_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
   };
 
   const handleSoftDeleteDocumento = (docId: string) => {
-    setDocumentos((prev) =>
-      prev.map((d) => (d.id === docId ? { ...d, isDeleted: true } : d))
-    );
+    setDocumentos((prev) => {
+      const updated = prev.map((d) => (d.id === docId ? { ...d, isDeleted: true } : d));
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_documentos_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
   };
 
   const handleRestoreDocumento = (docId: string) => {
-    setDocumentos((prev) =>
-      prev.map((d) => (d.id === docId ? { ...d, isDeleted: false } : d))
-    );
+    setDocumentos((prev) => {
+      const updated = prev.map((d) => (d.id === docId ? { ...d, isDeleted: false } : d));
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_documentos_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
   };
 
-  // Guardar nueva Visita
+  // Guardar nueva Visita con persistencia
   const handleSaveVisita = (nuevaVisitaData: Partial<VisitaReport>) => {
     const id = `vis-${Date.now()}`;
     const authorName = currentUser?.name || 'Técnico';
@@ -394,11 +507,19 @@ export default function HomePage() {
       conclusiones: nuevaVisitaData.conclusiones || '',
       estadoResultante: nuevaVisitaData.estadoResultante || selectedObra?.estado || 'EN_EJECUCION',
       checklist: nuevaVisitaData.checklist || [],
-      fotosIds: [],
-      documentosIds: [],
+      fotosIds: nuevaVisitaData.fotosIds || [],
+      documentosIds: nuevaVisitaData.documentosIds || [],
     };
 
-    setVisitas((prev) => [newVis, ...prev]);
+    setVisitas((prev) => {
+      const updated = [newVis, ...prev];
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_visitas_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
 
     const newTl: TimelineEvent = {
       id: `tl-${Date.now()}`,
@@ -415,13 +536,19 @@ export default function HomePage() {
     setTimeline((prev) => [newTl, ...prev]);
 
     if (nuevaVisitaData.estadoResultante && selectedObra) {
-      setObras((prev) =>
-        prev.map((o) => (o.id === selectedObra.id ? { ...o, estado: nuevaVisitaData.estadoResultante! } : o))
-      );
+      setObras((prev) => {
+        const updated = prev.map((o) => (o.id === selectedObra.id ? { ...o, estado: nuevaVisitaData.estadoResultante! } : o));
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('geobras_obras_list', JSON.stringify(updated));
+          } catch {}
+        }
+        return updated;
+      });
     }
   };
 
-  // Guardar nueva Obra
+  // Guardar nueva Obra con persistencia
   const handleSaveObra = (nuevaObraData: Partial<Obra>) => {
     const id = `obr-${Date.now()}`;
     const authorName = currentUser?.name || 'Admin';
@@ -448,7 +575,15 @@ export default function HomePage() {
       createdAt: new Date().toISOString(),
     };
 
-    setObras((prev) => [newOb, ...prev]);
+    setObras((prev) => {
+      const updated = [newOb, ...prev];
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_obras_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
     setSelectedObraId(id);
     setMobileSheetDismissed(false);
 
@@ -465,7 +600,7 @@ export default function HomePage() {
     setTimeline((prev) => [newTl, ...prev]);
   };
 
-  // Guardar Documento
+  // Guardar Documento con soporte de archivo real y persistencia
   const handleUploadDocumento = (docData: Partial<Documento>) => {
     if (!selectedObra) return;
     const id = `doc-${Date.now()}`;
@@ -477,14 +612,22 @@ export default function HomePage() {
       nombreArchivo: docData.nombreArchivo || 'documento.pdf',
       formato: docData.formato || 'PDF',
       tamanoBytes: docData.tamanoBytes || 1024000,
-      urlDescarga: '#',
+      urlDescarga: docData.urlDescarga || '#',
       importeAsociado: docData.importeAsociado,
       fechaDocumento: docData.fechaDocumento || new Date().toISOString().split('T')[0],
       subidoPor: authorName,
       notas: docData.notas,
     };
 
-    setDocumentos((prev) => [newDoc, ...prev]);
+    setDocumentos((prev) => {
+      const updated = [newDoc, ...prev];
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_documentos_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
 
     let eventType: any = 'FACTURA';
     if (newDoc.categoria === 'OFERTA_PRESUPUESTO') eventType = 'OFERTA';
@@ -505,7 +648,7 @@ export default function HomePage() {
     setTimeline((prev) => [newTl, ...prev]);
   };
 
-  // Guardar Foto GPS
+  // Guardar Foto GPS con soporte de archivo/cámara real y persistencia
   const handleAddFoto = (fotoData: Partial<FotoGPS>) => {
     if (!selectedObra) return;
     const id = `fot-${Date.now()}`;
@@ -524,7 +667,15 @@ export default function HomePage() {
       distanciaMetrosAObra: fotoData.distanciaMetrosAObra || 5,
     };
 
-    setFotos((prev) => [newFoto, ...prev]);
+    setFotos((prev) => {
+      const updated = [newFoto, ...prev];
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_fotos_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
 
     const newTl: TimelineEvent = {
       id: `tl-${Date.now()}`,
@@ -1682,6 +1833,7 @@ export default function HomePage() {
           users={users}
           onUpdateUserRole={handleUpdateUserRole}
           onAddUser={handleAddUser}
+          onDeleteUser={handleDeleteUser}
           permisosRoles={permisosRoles}
           onTogglePermiso={handleTogglePermiso}
         />

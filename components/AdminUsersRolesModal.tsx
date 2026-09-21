@@ -24,6 +24,7 @@ interface AdminUsersRolesModalProps {
   users: User[];
   onUpdateUserRole: (userId: string, newRole: UserRole) => void;
   onAddUser: (newUser: Omit<User, 'id'>) => void;
+  onDeleteUser?: (userId: string) => void;
   permisosRoles: Record<UserRole, PermisosRol>;
   onTogglePermiso: (role: UserRole, permisoKey: keyof PermisosRol) => void;
 }
@@ -34,6 +35,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   users,
   onUpdateUserRole,
   onAddUser,
+  onDeleteUser,
   permisosRoles,
   onTogglePermiso,
 }) => {
@@ -348,6 +350,21 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                           </select>
                           <ChevronDown className="w-4 h-4 text-slate-500 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
                         </div>
+                        {onDeleteUser && u.id !== 'usr-1' && (
+                          <div className="pt-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`¿Deseas dar de baja y eliminar al usuario ${u.name}?`)) {
+                                  onDeleteUser(u.id);
+                                }
+                              }}
+                              className="text-[11px] text-rose-600 font-semibold flex items-center gap-1 hover:underline p-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Dar de baja usuario
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -404,17 +421,33 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                           </td>
 
                           <td className="py-3 px-4 text-right">
-                            <select
-                              value={u.role}
-                              onChange={(e) => onUpdateUserRole(u.id, e.target.value as UserRole)}
-                              className="text-xs bg-slate-50 border border-slate-300 rounded-lg py-1 px-2 font-medium focus:ring-1 focus:ring-sky-500 cursor-pointer"
-                              title="Cambia el rol del usuario para alterar sus permisos al instante"
-                            >
-                              <option value="ADMIN">Administrador</option>
-                              <option value="JEFE_OBRA">Jefe de Obra</option>
-                              <option value="TECNICO_CAMPO">Técnico de Campo</option>
-                              <option value="CONSULTOR_EXTERNO">Consultor Externo</option>
-                            </select>
+                            <div className="flex items-center justify-end gap-2">
+                              <select
+                                value={u.role}
+                                onChange={(e) => onUpdateUserRole(u.id, e.target.value as UserRole)}
+                                className="text-xs bg-slate-50 border border-slate-300 rounded-lg py-1 px-2 font-medium focus:ring-1 focus:ring-sky-500 cursor-pointer"
+                                title="Cambia el rol del usuario para alterar sus permisos al instante"
+                              >
+                                <option value="ADMIN">Administrador</option>
+                                <option value="JEFE_OBRA">Jefe de Obra</option>
+                                <option value="TECNICO_CAMPO">Técnico de Campo</option>
+                                <option value="CONSULTOR_EXTERNO">Consultor Externo</option>
+                              </select>
+                              {onDeleteUser && u.id !== 'usr-1' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`¿Deseas dar de baja y eliminar al usuario ${u.name}?`)) {
+                                      onDeleteUser(u.id);
+                                    }
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                  title="Eliminar usuario del sistema"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );

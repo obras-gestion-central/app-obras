@@ -21,12 +21,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  const handleClose = () => {
+    setEmailInput('');
+    setPasswordInput('');
+    setErrorMsg('');
+    onClose?.();
+  };
+
   // Permitir cerrar con la tecla Escape
   useEffect(() => {
     if (!isOpen || !onClose) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -77,7 +84,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     <div 
       onClick={(e) => {
         if (e.target === e.currentTarget && onClose) {
-          onClose();
+          handleClose();
         }
       }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-4 overflow-y-auto select-none"
@@ -88,7 +95,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         <div className="px-6 py-6 bg-slate-900 text-white text-center border-b border-slate-800 relative">
           {onClose && (
             <button
-              onClick={onClose}
+              onClick={handleClose}
               type="button"
               className="absolute top-3.5 right-3.5 flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/90 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all cursor-pointer shadow-sm active:scale-95"
               title="Cerrar ventana y entrar al mapa"
@@ -112,35 +119,31 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <form onSubmit={handlePasswordLoginSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Correo Electrónico
+                Correo electrónico
               </label>
               <input
                 type="email"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="Introduce tu correo (ej. david.perez@empresa.com)"
+                placeholder="Correo electrónico"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm font-medium text-slate-800 placeholder-slate-400 transition-all"
-                autoComplete="email"
+                autoComplete="off"
                 autoCapitalize="none"
+                autoCorrect="off"
                 spellCheck="false"
               />
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Contraseña
-                </label>
-                <span className="text-[10px] text-slate-400">
-                  (Si tu cuenta la requiere)
-                </span>
-              </div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Contraseña
+              </label>
               <div className="relative">
                 <input
                   type="password"
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="Introduce tu contraseña"
+                  placeholder="Contraseña"
                   className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 text-sm font-medium text-slate-800 placeholder-slate-400 transition-all"
                   autoComplete="new-password"
                   autoCorrect="off"
@@ -171,7 +174,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <div className="pt-2 border-t border-slate-100">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 hover:text-slate-900 text-xs font-semibold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-200"
                 title="Abandonar inicio de sesión y acceder al mapa"
               >
