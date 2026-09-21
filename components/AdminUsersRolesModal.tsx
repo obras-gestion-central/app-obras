@@ -50,36 +50,66 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<UserRole>('TECNICO_CAMPO');
   const [newUserPassword, setNewUserPassword] = useState('');
+  const [formError, setFormError] = useState('');
 
   if (!isOpen) return null;
 
   const handleCreateUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUserName.trim() || !newUserEmail.trim()) return;
-    if (!newUserPassword.trim()) {
-      alert('Los nuevos usuarios deben tener una contraseña asignada.');
+    setFormError('');
+
+    const trimmedName = newUserName.trim();
+    const cleanEmail = newUserEmail.trim().toLowerCase();
+    const cleanPass = newUserPassword.trim();
+
+    if (!trimmedName) {
+      setFormError('Introduce el nombre completo del usuario.');
       return;
     }
 
-    const initials = newUserName
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setFormError('Introduce un correo electrónico válido.');
+      return;
+    }
+
+    if (!cleanPass) {
+      setFormError('Los nuevos usuarios deben tener una contraseña de acceso asignada.');
+      return;
+    }
+
+    if (cleanPass.length < 3) {
+      setFormError('La contraseña debe tener un mínimo de 3 caracteres.');
+      return;
+    }
+
+    // Comprobación estricta de correo duplicado
+    const emailExists = users.some((u) => u.email.toLowerCase() === cleanEmail);
+    if (emailExists) {
+      setFormError(`Ya existe un usuario con el correo "${cleanEmail}". Cada compañero debe tener una dirección única.`);
+      return;
+    }
+
+    const initials = trimmedName
       .split(' ')
+      .filter(Boolean)
       .map((n) => n[0])
       .join('')
       .toUpperCase()
-      .slice(0, 2);
+      .slice(0, 2) || 'US';
 
     onAddUser({
-      name: newUserName.trim(),
-      email: newUserEmail.trim().toLowerCase(),
+      name: trimmedName,
+      email: cleanEmail,
       role: newUserRole,
-      avatar: initials || 'US',
-      password: newUserPassword.trim(),
+      avatar: initials,
+      password: cleanPass,
       requiresPassword: true,
     });
 
     setNewUserName('');
     setNewUserEmail('');
     setNewUserPassword('');
+    setFormError('');
     setShowAddUserForm(false);
   };
 
@@ -221,11 +251,19 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
               {showAddUserForm && (
                 <form
                   onSubmit={handleCreateUserSubmit}
+                  autoComplete="off"
                   className="bg-white p-3.5 sm:p-4 rounded-2xl border border-sky-300 shadow-sm space-y-3 animate-in fade-in"
                 >
                   <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                     <Plus className="w-4 h-4 text-sky-600" /> Registrar Nuevo Usuario en el Equipo
                   </h4>
+
+                  {formError && (
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
+                      <span className="font-bold">⚠️ Error:</span>
+                      <span>{formError}</span>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
                     <div>
@@ -237,6 +275,9 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                         placeholder="Ej: Raúl Navarro (Ingeniero)"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500"
                         required
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck="false"
                       />
                     </div>
 
@@ -249,6 +290,10 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                         placeholder="raul.navarro@empresa.com"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500"
                         required
+                        autoComplete="off"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck="false"
                       />
                     </div>
 
@@ -261,6 +306,9 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                         placeholder="Contraseña de acceso"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500"
                         required
+                        autoComplete="new-password"
+                        autoCorrect="off"
+                        spellCheck="false"
                       />
                     </div>
 
@@ -282,14 +330,17 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                   <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                     <button
                       type="button"
-                      onClick={() => setShowAddUserForm(false)}
+                      onClick={() => {
+                        setShowAddUserForm(false);
+                        setFormError('');
+                      }}
                       className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-xl"
                     >
                       Cancelar
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl"
+                      className="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs"
                     >
                       Guardar y Asignar Rol
                     </button>

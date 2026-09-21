@@ -56,15 +56,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    // Buscar por correo, nombre o identificador rápido
-    const targetUser = users.find(
-      (u) => 
-        u.email.toLowerCase() === trimmedInput || 
-        u.name.toLowerCase() === trimmedInput ||
-        u.name.toLowerCase().includes(trimmedInput) ||
-        (trimmedInput === 'admin' && u.role === 'ADMIN') ||
-        (trimmedInput === 'david' && u.name.toLowerCase().includes('david'))
-    );
+    // Prioridad 1: Coincidencia exacta por correo
+    let targetUser = users.find((u) => u.email.toLowerCase() === trimmedInput);
+
+    // Prioridad 2: Coincidencia exacta por nombre
+    if (!targetUser) {
+      targetUser = users.find((u) => u.name.toLowerCase() === trimmedInput);
+    }
+
+    // Prioridad 3: Atajo admin o david para el administrador
+    if (!targetUser && (trimmedInput === 'admin' || trimmedInput === 'david')) {
+      targetUser = users.find((u) => u.id === 'usr-1') || users.find((u) => u.role === 'ADMIN');
+    }
+
+    // Prioridad 4: Contiene el nombre
+    if (!targetUser) {
+      targetUser = users.find((u) => u.name.toLowerCase().includes(trimmedInput));
+    }
 
     if (!targetUser) {
       setErrorMsg('No se encontró ningún usuario con ese correo electrónico.');
@@ -76,10 +84,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         setErrorMsg('Este usuario requiere contraseña. Por favor, introdúcela.');
         return;
       }
-      const expectedPassword = targetUser.password || 'admin123';
       const isPasswordValid = 
-        passwordInput === expectedPassword || 
-        (targetUser.role === 'ADMIN' && (passwordInput === 'admin123' || passwordInput === 'admin'));
+        passwordInput === targetUser.password || 
+        (targetUser.id === 'usr-1' && (passwordInput === 'admin123' || passwordInput === 'admin'));
 
       if (!isPasswordValid) {
         setErrorMsg('Contraseña incorrecta. Por favor, revísala.');
@@ -129,7 +136,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <div className="p-3.5 bg-sky-50/90 border border-sky-200 rounded-2xl text-xs text-sky-950">
             <div className="flex items-center gap-1.5 font-bold text-sky-900 mb-1.5">
               <KeyRound className="w-4 h-4 text-sky-600" />
-              <span>Credenciales de acceso:</span>
+              <span>Administrador Principal (Acceso total):</span>
             </div>
             <div className="space-y-1 bg-white/80 p-2.5 rounded-xl border border-sky-100 font-mono text-[11px]">
               <div className="flex justify-between items-center">
@@ -141,6 +148,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <span className="font-bold text-sky-700 select-all">admin123</span>
               </div>
             </div>
+            <p className="text-[10px] text-slate-500 mt-2 leading-tight">
+              💡 Los nuevos usuarios registrados acceden con su propio correo y contraseña asignada.
+            </p>
           </div>
           
           {/* Formulario de Login */}

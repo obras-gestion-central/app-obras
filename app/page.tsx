@@ -54,6 +54,59 @@ import {
   Tag
 } from 'lucide-react';
 
+// Función de saneamiento y deduplicación estricta de usuarios
+function sanitizeUsersList(rawUsers: any[]): User[] {
+  const result: User[] = [];
+  const seenEmails = new Set<string>();
+
+  // 1. David Pérez es el único Administrador principal inmutable con id usr-1
+  const adminDavid: User = {
+    id: 'usr-1',
+    name: 'David Pérez',
+    email: 'david.perez@empresa.com',
+    role: 'ADMIN',
+    avatar: 'DP',
+    password: 'admin123',
+    requiresPassword: true,
+  };
+  result.push(adminDavid);
+  seenEmails.add('david.perez@empresa.com');
+
+  if (Array.isArray(rawUsers)) {
+    for (const u of rawUsers) {
+      if (!u || typeof u !== 'object') continue;
+      const email = (u.email || '').trim().toLowerCase();
+      const name = (u.name || '').trim();
+
+      // Si es el id usr-1 o el correo de David Pérez, ya está incluido como administrador principal
+      if (u.id === 'usr-1' || email === 'david.perez@empresa.com') {
+        continue;
+      }
+
+      // Evitar duplicados por correo electrónico
+      if (seenEmails.has(email)) {
+        continue;
+      }
+
+      if (email) {
+        seenEmails.add(email);
+      }
+
+      result.push({
+        id: u.id || `usr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        name: name || 'Usuario',
+        email: email || `usuario-${Date.now()}@empresa.com`,
+        role: (u.role as UserRole) || 'TECNICO_CAMPO',
+        avatar: u.avatar || (name ? name.slice(0, 2).toUpperCase() : 'US'),
+        password: u.password || '1234',
+        requiresPassword: u.requiresPassword !== false,
+      });
+    }
+  }
+
+  return result;
+}
+
 export default function HomePage() {
   // Estado Principal con Persistencia Local
   const [obras, setObras] = useState<Obra[]>(() => {
@@ -121,40 +174,29 @@ export default function HomePage() {
 
   const [isClient, setIsClient] = useState(false);
 
+  // Usuarios y Matriz de Permisos Dinámica con Persistencia Local
+  const [users, setUsers] = useState<User[]>(USUARIOS_MOCK);
+  const [permisosRoles, setPermisosRoles] = useState<Record<UserRole, PermisosRol>>(PERMISOS_POR_ROL);
+
+  // Sincronización en cliente y purga de duplicados en localStorage
   useEffect(() => {
     setIsClient(true);
-  }, []);
-
-  // Usuarios y Matriz de Permisos Dinámica con Persistencia Local
-  const [users, setUsers] = useState<User[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('geobras_users_list');
-      if (saved) {
-        try {
+      try {
+        const saved = localStorage.getItem('geobras_users_list');
+        if (saved) {
           const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const updated = parsed.map((u: User) => {
-              if (u.name === 'David Pérez' || u.id === 'usr-1' || u.email === 'david.perez@empresa.com') {
-                return { 
-                  ...u, 
-                  email: 'david.perez@empresa.com', 
-                  password: 'admin123', 
-                  requiresPassword: true,
-                  role: 'ADMIN' as UserRole
-                };
-              }
-              return u;
-            });
-            const hasDavid = updated.some((u: User) => u.name === 'David Pérez');
-            if (hasDavid) return updated;
-            return [...USUARIOS_MOCK, ...updated];
-          }
-        } catch {}
+          const sanitized = sanitizeUsersList(parsed);
+          setUsers(sanitized);
+          localStorage.setItem('geobras_users_list', JSON.stringify(sanitized));
+        } else {
+          localStorage.setItem('geobras_users_list', JSON.stringify(USUARIOS_MOCK));
+        }
+      } catch {
+        setUsers(USUARIOS_MOCK);
       }
     }
-    return USUARIOS_MOCK;
-  });
-  const [permisosRoles, setPermisosRoles] = useState<Record<UserRole, PermisosRol>>(PERMISOS_POR_ROL);
+  }, []);
 
   // Sesión y Autenticación de Usuario (Inicia cerrada / null por defecto para requerir identificación limpia)
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -265,12 +307,22 @@ export default function HomePage() {
   };
 
   const handleAddUser = (newUser: Omit<User, 'id'>) => {
+    const cleanEmail = newUser.email.trim().toLowerCase();
+    
+    // Validar si ya existe un usuario con este correo electrónico
+    if (users.some((u) => u.email.toLowerCase() === cleanEmail)) {
+      alert(`El correo "${cleanEmail}" ya pertenece a un usuario existente. Por favor, utiliza un correo diferente.`);
+      return;
+    }
+
     const created: User = {
       ...newUser,
+      email: cleanEmail,
       id: `usr-${Date.now()}`,
     };
+
     setUsers((prev) => {
-      const updated = [...prev, created];
+      const updated = sanitizeUsersList([...prev, created]);
       if (typeof window !== 'undefined') {
         localStorage.setItem('geobras_users_list', JSON.stringify(updated));
       }
@@ -284,7 +336,8 @@ export default function HomePage() {
       return;
     }
     setUsers((prev) => {
-      const updated = prev.filter((u) => u.id !== userId);
+      const filtered = prev.filter((u) => u.id !== userId);
+      const updated = sanitizeUsersList(filtered);
       if (typeof window !== 'undefined') {
         localStorage.setItem('geobras_users_list', JSON.stringify(updated));
       }
