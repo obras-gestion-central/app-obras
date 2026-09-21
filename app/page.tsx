@@ -119,6 +119,12 @@ export default function HomePage() {
   const [showTaxonomiasModal, setShowTaxonomiasModal] = useState(false);
   const [taxonomiasModalCategory, setTaxonomiasModalCategory] = useState<CategoriaTaxonomia>('TIPO_VISITA');
 
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   // Usuarios y Matriz de Permisos Dinámica con Persistencia Local
   const [users, setUsers] = useState<User[]>(() => {
     if (typeof window !== 'undefined') {
@@ -127,9 +133,21 @@ export default function HomePage() {
         try {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            const hasDavid = parsed.some((u: User) => u.name === 'David Pérez');
-            if (hasDavid) return parsed;
-            return [...USUARIOS_MOCK, ...parsed];
+            const updated = parsed.map((u: User) => {
+              if (u.name === 'David Pérez' || u.id === 'usr-1' || u.email === 'david.perez@empresa.com') {
+                return { 
+                  ...u, 
+                  email: 'david.perez@empresa.com', 
+                  password: 'admin123', 
+                  requiresPassword: true,
+                  role: 'ADMIN' as UserRole
+                };
+              }
+              return u;
+            });
+            const hasDavid = updated.some((u: User) => u.name === 'David Pérez');
+            if (hasDavid) return updated;
+            return [...USUARIOS_MOCK, ...updated];
           }
         } catch {}
       }
@@ -810,6 +828,7 @@ export default function HomePage() {
         localStorage.removeItem('geobras_visitas_list');
         localStorage.removeItem('geobras_obras_list');
         localStorage.removeItem('geobras_taxonomias');
+        localStorage.removeItem('geobras_users_list');
       } catch {}
     }
     setCurrentUser(null);
@@ -818,8 +837,34 @@ export default function HomePage() {
     setDocumentos([]);
     setVisitas([]);
     setObras(OBRAS_MOCK);
+    setUsers(USUARIOS_MOCK);
     setShowLoginModal(true);
   };
+
+  // Control de hidratación de Next.js para evitar desajustes en el primer render
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-sky-500/20 border-t-sky-500 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // PROTECCIÓN OBLIGATORIA: CERO INFORMACIÓN PÚBLICA
+  // Si no hay nadie logueado, NO se muestra ninguna información de la app.
+  // El dashboard, mapa, expedientes y obras NO se montan en el cliente.
+  // =========================================================================
+  if (!currentUser) {
+    return (
+      <LoginModal
+        isOpen={true}
+        users={users}
+        onLogin={handleLogin}
+        onClearCache={handleClearAllCacheAndData}
+      />
+    );
+  }
 
   // Datos filtrados de la obra seleccionada
   const selectedVisitas = visitas.filter((v) => v.obraId === selectedObra?.id && !v.isDeleted);

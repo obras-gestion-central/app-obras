@@ -7,7 +7,8 @@ export const USUARIOS_MOCK: User[] = [
     email: 'david.perez@empresa.com', 
     role: 'ADMIN', 
     avatar: 'DP', 
-    requiresPassword: false 
+    password: 'admin123',
+    requiresPassword: true 
   },
 ];
 
