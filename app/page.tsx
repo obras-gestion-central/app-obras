@@ -54,54 +54,49 @@ import {
   Tag
 } from 'lucide-react';
 
-// Función de saneamiento y deduplicación estricta de usuarios
+// Función de saneamiento y deduplicación de usuarios sin datos emulados
 function sanitizeUsersList(rawUsers: any[]): User[] {
+  if (!Array.isArray(rawUsers) || rawUsers.length === 0) {
+    return USUARIOS_MOCK;
+  }
+
   const result: User[] = [];
   const seenEmails = new Set<string>();
+  const seenIds = new Set<string>();
 
-  // 1. David Pérez es el único Administrador principal inmutable con id usr-1
-  const adminDavid: User = {
-    id: 'usr-1',
-    name: 'David Pérez',
-    email: 'david.perez@empresa.com',
-    role: 'ADMIN',
-    avatar: 'DP',
-    password: 'admin123',
-    requiresPassword: true,
-  };
-  result.push(adminDavid);
-  seenEmails.add('david.perez@empresa.com');
+  for (const u of rawUsers) {
+    if (!u || typeof u !== 'object') continue;
+    const email = (u.email || '').trim().toLowerCase();
+    const id = (u.id || '').trim();
 
-  if (Array.isArray(rawUsers)) {
-    for (const u of rawUsers) {
-      if (!u || typeof u !== 'object') continue;
-      const email = (u.email || '').trim().toLowerCase();
-      const name = (u.name || '').trim();
+    if (!email || seenEmails.has(email)) continue;
+    if (!id || seenIds.has(id)) continue;
 
-      // Si es el id usr-1 o el correo de David Pérez, ya está incluido como administrador principal
-      if (u.id === 'usr-1' || email === 'david.perez@empresa.com') {
-        continue;
-      }
+    seenEmails.add(email);
+    seenIds.add(id);
 
-      // Evitar duplicados por correo electrónico
-      if (seenEmails.has(email)) {
-        continue;
-      }
+    const name = (u.name || '').trim() || 'Usuario';
+    const initials = (u.avatar || '').trim() || (name.length >= 2 ? name.slice(0, 2).toUpperCase() : 'US');
 
-      if (email) {
-        seenEmails.add(email);
-      }
+    result.push({
+      id,
+      name,
+      email,
+      role: (u.role as UserRole) || 'TECNICO_CAMPO',
+      avatar: initials,
+      password: (u.password || '').trim() || '1234',
+      requiresPassword: true,
+    });
+  }
 
-      result.push({
-        id: u.id || `usr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        name: name || 'Usuario',
-        email: email || `usuario-${Date.now()}@empresa.com`,
-        role: (u.role as UserRole) || 'TECNICO_CAMPO',
-        avatar: u.avatar || (name ? name.slice(0, 2).toUpperCase() : 'US'),
-        password: u.password || '1234',
-        requiresPassword: u.requiresPassword !== false,
-      });
-    }
+  if (result.length === 0) {
+    return USUARIOS_MOCK;
+  }
+
+  // Garantizar que siempre haya al menos 1 Administrador para no perder acceso
+  const hasAdmin = result.some((u) => u.role === 'ADMIN');
+  if (!hasAdmin) {
+    result[0].role = 'ADMIN';
   }
 
   return result;
@@ -175,7 +170,18 @@ export default function HomePage() {
   const [isClient, setIsClient] = useState(false);
 
   // Usuarios y Matriz de Permisos Dinámica con Persistencia Local
-  const [users, setUsers] = useState<User[]>(USUARIOS_MOCK);
+  const [users, setUsers] = useState<User[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('geobras_users_list');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return sanitizeUsersList(parsed);
+        }
+      } catch {}
+    }
+    return USUARIOS_MOCK;
+  });
   const [permisosRoles, setPermisosRoles] = useState<Record<UserRole, PermisosRol>>(PERMISOS_POR_ROL);
 
   // Sincronización en cliente y purga de duplicados en localStorage
@@ -330,11 +336,53 @@ export default function HomePage() {
     });
   };
 
-  const handleDeleteUser = (userId: string) => {
-    if (userId === 'usr-1') {
-      alert('No es posible eliminar al Administrador principal.');
+  const handleEditUser = (updatedUser: User) => {
+    const cleanEmail = updatedUser.email.trim().toLowerCase();
+    
+    // Validar si el correo ya existe en otro usuario
+    const emailConflict = users.some(
+      (u) => u.id !== updatedUser.id && u.email.toLowerCase() === cleanEmail
+    );
+    if (emailConflict) {
+      alert(`El correo "${cleanEmail}" ya pertenece a otro usuario registrado.`);
       return;
     }
+
+    const cleanUser: User = {
+      ...updatedUser,
+      name: updatedUser.name.trim(),
+      email: cleanEmail,
+      password: updatedUser.password?.trim() || '1234',
+      avatar: updatedUser.name.trim().length >= 2 ? updatedUser.name.trim().slice(0, 2).toUpperCase() : 'US',
+    };
+
+    setUsers((prev) => {
+      const updated = prev.map((u) => (u.id === cleanUser.id ? cleanUser : u));
+      const sanitized = sanitizeUsersList(updated);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geobras_users_list', JSON.stringify(sanitized));
+      }
+      return sanitized;
+    });
+
+    if (currentUser && currentUser.id === cleanUser.id) {
+      setCurrentUser(cleanUser);
+      setCurrentRole(cleanUser.role);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('geobras_user_session', JSON.stringify(cleanUser));
+      }
+    }
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    const targetUser = users.find((u) => u.id === userId);
+    const adminCount = users.filter((u) => u.role === 'ADMIN').length;
+
+    if (targetUser?.role === 'ADMIN' && adminCount <= 1) {
+      alert('No es posible eliminar al único Administrador del sistema. Debe existir al menos un usuario Administrador activo.');
+      return;
+    }
+
     setUsers((prev) => {
       const filtered = prev.filter((u) => u.id !== userId);
       const updated = sanitizeUsersList(filtered);
@@ -343,6 +391,7 @@ export default function HomePage() {
       }
       return updated;
     });
+
     if (currentUser?.id === userId) {
       handleLogout();
     }
@@ -2065,6 +2114,7 @@ export default function HomePage() {
           users={users}
           onUpdateUserRole={handleUpdateUserRole}
           onAddUser={handleAddUser}
+          onEditUser={handleEditUser}
           onDeleteUser={handleDeleteUser}
           permisosRoles={permisosRoles}
           onTogglePermiso={handleTogglePermiso}

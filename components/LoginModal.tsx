@@ -56,42 +56,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    // Prioridad 1: Coincidencia exacta por correo
-    let targetUser = users.find((u) => u.email.toLowerCase() === trimmedInput);
-
-    // Prioridad 2: Coincidencia exacta por nombre
-    if (!targetUser) {
-      targetUser = users.find((u) => u.name.toLowerCase() === trimmedInput);
-    }
-
-    // Prioridad 3: Atajo admin o david para el administrador
-    if (!targetUser && (trimmedInput === 'admin' || trimmedInput === 'david')) {
-      targetUser = users.find((u) => u.id === 'usr-1') || users.find((u) => u.role === 'ADMIN');
-    }
-
-    // Prioridad 4: Contiene el nombre
-    if (!targetUser) {
-      targetUser = users.find((u) => u.name.toLowerCase().includes(trimmedInput));
-    }
+    // Búsqueda estricta por correo electrónico
+    const targetUser = users.find((u) => u.email.toLowerCase() === trimmedInput);
 
     if (!targetUser) {
-      setErrorMsg('No se encontró ningún usuario con ese correo electrónico.');
+      setErrorMsg('Credenciales de acceso incorrectas.');
       return;
     }
 
-    if (targetUser.requiresPassword) {
-      if (!passwordInput) {
-        setErrorMsg('Este usuario requiere contraseña. Por favor, introdúcela.');
-        return;
-      }
-      const isPasswordValid = 
-        passwordInput === targetUser.password || 
-        (targetUser.id === 'usr-1' && (passwordInput === 'admin123' || passwordInput === 'admin'));
-
-      if (!isPasswordValid) {
-        setErrorMsg('Contraseña incorrecta. Por favor, revísala.');
-        return;
-      }
+    if (!passwordInput || targetUser.password !== passwordInput) {
+      setErrorMsg('Credenciales de acceso incorrectas.');
+      return;
     }
 
     onLogin(targetUser);
@@ -127,31 +102,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </div>
           <h2 className="text-xl font-black tracking-tight">GEOBRAS</h2>
           <p className="text-xs text-sky-400 font-semibold mt-0.5">Control y Gestión Geográfica de Obras</p>
-          <p className="text-[11px] text-slate-400 mt-1">Acceso restringido: Inicia sesión para consultar la información</p>
+          <p className="text-[11px] text-slate-400 mt-1">Acceso restringido: Inicia sesión para acceder al sistema</p>
         </div>
 
         <div className="p-5 sm:p-6 space-y-4">
-
-          {/* Tarjeta con credenciales de acceso para el usuario */}
-          <div className="p-3.5 bg-sky-50/90 border border-sky-200 rounded-2xl text-xs text-sky-950">
-            <div className="flex items-center gap-1.5 font-bold text-sky-900 mb-1.5">
-              <KeyRound className="w-4 h-4 text-sky-600" />
-              <span>Administrador Principal (Acceso total):</span>
-            </div>
-            <div className="space-y-1 bg-white/80 p-2.5 rounded-xl border border-sky-100 font-mono text-[11px]">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Correo:</span>
-                <span className="font-bold text-slate-900 select-all">david.perez@empresa.com</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-500">Contraseña:</span>
-                <span className="font-bold text-sky-700 select-all">admin123</span>
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-500 mt-2 leading-tight">
-              💡 Los nuevos usuarios registrados acceden con su propio correo y contraseña asignada.
-            </p>
-          </div>
           
           {/* Formulario de Login */}
           <form onSubmit={handlePasswordLoginSubmit} className="space-y-4">

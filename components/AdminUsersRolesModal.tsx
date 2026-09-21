@@ -15,7 +15,9 @@ import {
   Trash2, 
   FileSpreadsheet, 
   FileText,
-  ChevronDown
+  ChevronDown,
+  Edit2,
+  KeyRound
 } from 'lucide-react';
 
 interface AdminUsersRolesModalProps {
@@ -24,6 +26,7 @@ interface AdminUsersRolesModalProps {
   users: User[];
   onUpdateUserRole: (userId: string, newRole: UserRole) => void;
   onAddUser: (newUser: Omit<User, 'id'>) => void;
+  onEditUser?: (updatedUser: User) => void;
   onDeleteUser?: (userId: string) => void;
   permisosRoles: Record<UserRole, PermisosRol>;
   onTogglePermiso: (role: UserRole, permisoKey: keyof PermisosRol) => void;
@@ -35,6 +38,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   users,
   onUpdateUserRole,
   onAddUser,
+  onEditUser,
   onDeleteUser,
   permisosRoles,
   onTogglePermiso,
@@ -51,6 +55,74 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   const [newUserRole, setNewUserRole] = useState<UserRole>('TECNICO_CAMPO');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [formError, setFormError] = useState('');
+
+  // Estado para editar usuario
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [editRole, setEditRole] = useState<UserRole>('TECNICO_CAMPO');
+  const [editError, setEditError] = useState('');
+
+  const handleStartEdit = (u: User) => {
+    setEditingUserId(u.id);
+    setEditName(u.name);
+    setEditEmail(u.email);
+    setEditPassword(u.password || '');
+    setEditRole(u.role);
+    setEditError('');
+    setShowAddUserForm(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUserId(null);
+    setEditError('');
+  };
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError('');
+    if (!editingUserId || !onEditUser) return;
+
+    const trimmedName = editName.trim();
+    const cleanEmail = editEmail.trim().toLowerCase();
+    const cleanPass = editPassword.trim();
+
+    if (!trimmedName) {
+      setEditError('El nombre no puede estar vacío.');
+      return;
+    }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setEditError('Introduce un correo electrónico válido.');
+      return;
+    }
+    if (!cleanPass || cleanPass.length < 3) {
+      setEditError('La contraseña debe tener al menos 3 caracteres.');
+      return;
+    }
+
+    const emailConflict = users.some(
+      (u) => u.id !== editingUserId && u.email.toLowerCase() === cleanEmail
+    );
+    if (emailConflict) {
+      setEditError(`El correo "${cleanEmail}" ya está asignado a otro usuario.`);
+      return;
+    }
+
+    const target = users.find((u) => u.id === editingUserId);
+    if (!target) return;
+
+    onEditUser({
+      ...target,
+      name: trimmedName,
+      email: cleanEmail,
+      password: cleanPass,
+      role: editRole,
+      avatar: trimmedName.length >= 2 ? trimmedName.slice(0, 2).toUpperCase() : 'US',
+    });
+
+    setEditingUserId(null);
+  };
 
   if (!isOpen) return null;
 
@@ -348,10 +420,109 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                 </form>
               )}
 
+              {/* Formulario desplegable para EDITAR usuario existente */}
+              {editingUserId && (
+                <form
+                  onSubmit={handleSaveEdit}
+                  autoComplete="off"
+                  className="bg-sky-50/80 p-3.5 sm:p-4 rounded-2xl border-2 border-sky-400 shadow-md space-y-3 animate-in fade-in"
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                      <Edit2 className="w-4 h-4 text-sky-600" /> Modificar Datos y Contraseña del Usuario
+                    </h4>
+                    <span className="text-[10px] bg-sky-200/80 text-sky-800 font-bold px-2 py-0.5 rounded-full">
+                      Editando perfil
+                    </span>
+                  </div>
+
+                  {editError && (
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
+                      <span className="font-bold">⚠️ Error:</span>
+                      <span>{editError}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Nombre Completo *</label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Nombre y apellidos"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 font-medium"
+                        required
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Correo Electrónico *</label>
+                      <input
+                        type="email"
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        placeholder="correo@empresa.com"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 font-medium"
+                        required
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Nueva Contraseña *</label>
+                      <input
+                        type="text"
+                        value={editPassword}
+                        onChange={(e) => setEditPassword(e.target.value)}
+                        placeholder="Nueva contraseña"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500 font-medium"
+                        required
+                        autoComplete="off"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Rango / Rol Asignado *</label>
+                      <select
+                        value={editRole}
+                        onChange={(e) => setEditRole(e.target.value as UserRole)}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-medium focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      >
+                        <option value="ADMIN">👑 Administrador (Acceso Total)</option>
+                        <option value="JEFE_OBRA">👷 Jefe de Obra</option>
+                        <option value="TECNICO_CAMPO">🔍 Técnico de Campo (Sin $)</option>
+                        <option value="CONSULTOR_EXTERNO">📊 Consultor Externo</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-sky-200">
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-200/60 rounded-xl font-medium"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs"
+                    >
+                      Guardar Modificaciones
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {/* VISTA MÓVIL: TARJETAS RESPONSIVE DE USUARIOS (< sm) */}
               <div className="sm:hidden space-y-2.5">
                 {users.map((u) => {
                   const rolPerm = permisosRoles[u.role];
+                  const adminCount = users.filter((x) => x.role === 'ADMIN').length;
+                  const canDelete = onDeleteUser && (u.role !== 'ADMIN' || adminCount > 1);
+
                   return (
                     <div
                       key={u.id}
@@ -370,7 +541,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                         </div>
 
                         {/* Estado económico */}
-                        <div className="shrink-0">
+                        <div className="shrink-0 flex items-center gap-1.5">
                           {rolPerm.verDatosEconomicos ? (
                             <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
                               <Eye className="w-2.5 h-2.5" /> Con $
@@ -384,10 +555,21 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                       </div>
 
                       {/* Selector de Rol táctil de ancho completo */}
-                      <div className="pt-2 border-t border-slate-100">
-                        <label className="block text-[10px] font-semibold text-slate-500 mb-1">
-                          Modificar Rol / Rango de este usuario:
-                        </label>
+                      <div className="pt-2 border-t border-slate-100 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-semibold text-slate-500">
+                            Rol del usuario:
+                          </label>
+                          {onEditUser && (
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(u)}
+                              className="text-[11px] text-sky-600 font-bold flex items-center gap-1 hover:underline"
+                            >
+                              <Edit2 className="w-3 h-3" /> Editar datos / clave
+                            </button>
+                          )}
+                        </div>
                         <div className="relative">
                           <select
                             value={u.role}
@@ -401,13 +583,13 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                           </select>
                           <ChevronDown className="w-4 h-4 text-slate-500 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
                         </div>
-                        {onDeleteUser && u.id !== 'usr-1' && (
-                          <div className="pt-2 flex justify-end">
+                        {canDelete && (
+                          <div className="pt-1 flex justify-end">
                             <button
                               type="button"
                               onClick={() => {
                                 if (confirm(`¿Deseas dar de baja y eliminar al usuario ${u.name}?`)) {
-                                  onDeleteUser(u.id);
+                                  onDeleteUser?.(u.id);
                                 }
                               }}
                               className="text-[11px] text-rose-600 font-semibold flex items-center gap-1 hover:underline p-1"
@@ -431,12 +613,15 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                       <th className="py-2.5 px-4">Correo</th>
                       <th className="py-2.5 px-4">Rango / Rol Activo</th>
                       <th className="py-2.5 px-4">Acceso a Datos Económicos</th>
-                      <th className="py-2.5 px-4 text-right">Asignar Nuevo Rol</th>
+                      <th className="py-2.5 px-4 text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {users.map((u) => {
                       const rolPerm = permisosRoles[u.role];
+                      const adminCount = users.filter((x) => x.role === 'ADMIN').length;
+                      const canDelete = onDeleteUser && (u.role !== 'ADMIN' || adminCount > 1);
+
                       return (
                         <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
                           <td className="py-3 px-4 font-semibold text-slate-900 flex items-center gap-2.5">
@@ -473,6 +658,17 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
 
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-2">
+                              {onEditUser && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEdit(u)}
+                                  className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors border border-slate-200"
+                                  title="Editar nombre, correo o contraseña"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
                               <select
                                 value={u.role}
                                 onChange={(e) => onUpdateUserRole(u.id, e.target.value as UserRole)}
@@ -484,18 +680,19 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                                 <option value="TECNICO_CAMPO">Técnico de Campo</option>
                                 <option value="CONSULTOR_EXTERNO">Consultor Externo</option>
                               </select>
-                              {onDeleteUser && u.id !== 'usr-1' && (
+
+                              {canDelete && (
                                 <button
                                   type="button"
                                   onClick={() => {
                                     if (confirm(`¿Deseas dar de baja y eliminar al usuario ${u.name}?`)) {
-                                      onDeleteUser(u.id);
+                                      onDeleteUser?.(u.id);
                                     }
                                   }}
                                   className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
                                   title="Eliminar usuario del sistema"
                                 >
-                                  <Trash2 className="w-4 h-4" />
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                               )}
                             </div>
