@@ -28,6 +28,7 @@ interface DocumentosManagerProps {
   onUploadDocumento: (doc: Partial<Documento>) => void;
   onDeleteDocumento: (docId: string) => void;
   currentUserNombre: string;
+  onClearAllDocumentos?: () => void;
 }
 
 export const DocumentosManager: React.FC<DocumentosManagerProps> = ({
@@ -36,6 +37,7 @@ export const DocumentosManager: React.FC<DocumentosManagerProps> = ({
   onUploadDocumento,
   onDeleteDocumento,
   currentUserNombre,
+  onClearAllDocumentos,
 }) => {
   const permisos = PERMISOS_POR_ROL[userRole];
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -194,15 +196,33 @@ Notas técnicas: ${doc.notas || 'Sin notas adicionales'}
           </p>
         </div>
 
-        {permisos.subirDocumentos && (
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-smooth"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Adjuntar Documento</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {onClearAllDocumentos && activeDocs.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm(`¿Deseas borrar todos los ficheros y documentos (${activeDocs.length}) de esta obra? Esta acción no se puede deshacer.`)) {
+                  onClearAllDocumentos();
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200 transition-smooth"
+              title="Borrar todos los documentos adjuntos de esta obra"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              <span>Borrar Ficheros ({activeDocs.length})</span>
+            </button>
+          )}
+
+          {permisos.subirDocumentos && (
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-smooth"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Adjuntar Documento</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Listado de Documentos */}
@@ -277,16 +297,18 @@ Notas técnicas: ${doc.notas || 'Sin notas adicionales'}
                     <Download className="w-4 h-4" />
                   </button>
 
-                  {permisos.borrarObras && (
-                    <button
-                      type="button"
-                      onClick={() => onDeleteDocumento(doc.id)}
-                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                      title="Enviar a la Papelera de reciclaje"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`¿Deseas eliminar el fichero "${doc.nombreArchivo}" permanentemente?`)) {
+                        onDeleteDocumento(doc.id);
+                      }
+                    }}
+                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-transparent hover:border-rose-200"
+                    title="Eliminar fichero permanentemente"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             );

@@ -11,15 +11,16 @@ import {
   Plus, 
   Shield, 
   EyeOff, 
-  Users,
-  Menu,
-  X,
-  Layers,
-  ChevronDown,
-  Home,
-  LogOut,
-  User as UserIcon,
-  Tag
+  Users, 
+  Menu, 
+  X, 
+  Layers, 
+  ChevronDown, 
+  Home, 
+  LogOut, 
+  User as UserIcon, 
+  Tag,
+  RefreshCw
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -35,7 +36,8 @@ interface NavbarProps {
   setActiveView: (view: 'mapa' | 'listado') => void;
   onGoHome?: () => void;
   onLogout?: () => void;
-  currentUser?: User;
+  onClearCache?: () => void;
+  currentUser?: User | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -51,11 +53,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveView,
   onGoHome,
   onLogout,
+  onClearCache,
   currentUser,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const permisos = PERMISOS_POR_ROL[currentRole];
-  const user = currentUser || USUARIOS_MOCK.find((u) => u.role === currentRole) || USUARIOS_MOCK[0];
+  const user = currentUser || {
+    id: 'guest',
+    name: 'Invitado / Sin sesión',
+    email: 'Modo consulta (Sin sesión)',
+    role: 'CONSULTOR_EXTERNO' as UserRole,
+    avatar: '?',
+  };
 
   return (
     <header className="bg-slate-900 text-white border-b border-slate-800 fixed top-0 left-0 right-0 z-40 shadow-lg select-none">
@@ -137,8 +146,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
 
-            {/* Botón Nueva Obra (Destacado siempre) */}
-            {permisos.editarObras && (
+            {/* Botón Nueva Obra (Solo usuarios autenticados con permiso) */}
+            {currentUser && permisos.editarObras && (
               <button
                 onClick={onOpenNewObra}
                 className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 active:scale-95 text-white text-xs font-bold rounded-lg shadow-sm shadow-sky-500/30 transition-smooth"
@@ -196,8 +205,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
-              {/* Gestión de Usuarios y Roles (ADMIN) */}
-              {currentRole === 'ADMIN' && (
+              {/* Gestión de Usuarios y Roles (Solo ADMIN autenticado) */}
+              {currentUser && currentRole === 'ADMIN' && (
                 <button
                   onClick={onOpenAdminRoles}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 bg-purple-950/50 hover:bg-purple-900/70 text-purple-300 hover:text-white text-xs font-semibold rounded-lg border border-purple-500/40 transition-smooth"
@@ -208,14 +217,34 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
+              {/* Botón para Limpiar Caché y Restablecer Datos */}
+              {onClearCache && (
+                <button
+                  onClick={() => {
+                    if (confirm('¿Deseas vaciar la memoria caché y restablecer los datos locales? Se cerrará la sesión actual.')) {
+                      onClearCache();
+                    }
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg border border-slate-700 transition-smooth"
+                  title="Vaciar caché y reiniciar datos"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              )}
+
               {/* Botón Cerrar / Iniciar Sesión en Escritorio */}
               {onLogout && (
                 <button
                   onClick={onLogout}
-                  className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-smooth"
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-smooth ${
+                    currentUser 
+                      ? 'text-slate-400 hover:text-rose-400 hover:bg-slate-800' 
+                      : 'bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm'
+                  }`}
                   title={currentUser ? `Cerrar sesión (${currentUser.name})` : "Iniciar sesión"}
                 >
                   {currentUser ? <LogOut className="w-4 h-4" /> : <UserIcon className="w-4 h-4" />}
+                  {!currentUser && <span>Iniciar Sesión</span>}
                 </button>
               )}
             </div>
@@ -341,17 +370,37 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Cerrar Sesión en Móvil */}
+            {/* Limpiar Caché en Móvil */}
+            {onClearCache && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (confirm('¿Deseas vaciar la memoria caché y restablecer los datos locales? Se cerrará la sesión actual.')) {
+                    onClearCache();
+                  }
+                }}
+                className="w-full flex items-center gap-2.5 p-2.5 bg-amber-950/30 hover:bg-amber-900/40 text-amber-300 rounded-xl border border-amber-800/40 text-left font-medium transition-smooth"
+              >
+                <RefreshCw className="w-4 h-4 text-amber-400" />
+                <span>Vaciar Caché y Reiniciar Datos</span>
+              </button>
+            )}
+
+            {/* Cerrar o Iniciar Sesión en Móvil */}
             {onLogout && (
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   onLogout();
                 }}
-                className="w-full flex items-center gap-2.5 p-2.5 bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 rounded-xl border border-rose-800/40 text-left font-medium transition-smooth mt-1"
+                className={`w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left font-medium transition-smooth mt-1 ${
+                  currentUser
+                    ? 'bg-rose-950/30 hover:bg-rose-900/40 text-rose-300 border border-rose-800/40'
+                    : 'bg-sky-600 hover:bg-sky-500 text-white font-bold'
+                }`}
               >
-                <LogOut className="w-4 h-4 text-rose-400" />
-                <span>Cerrar Sesión / Cambiar Usuario</span>
+                {currentUser ? <LogOut className="w-4 h-4 text-rose-400" /> : <UserIcon className="w-4 h-4 text-white" />}
+                <span>{currentUser ? 'Cerrar Sesión / Cambiar Usuario' : 'Iniciar Sesión'}</span>
               </button>
             )}
 

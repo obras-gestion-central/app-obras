@@ -13,7 +13,8 @@ import {
   X, 
   CheckCircle,
   Calendar,
-  Compass
+  Compass,
+  Trash2
 } from 'lucide-react';
 
 interface FotosGalleryProps {
@@ -24,6 +25,8 @@ interface FotosGalleryProps {
   obraLng: number;
   onAddFoto: (foto: Partial<FotoGPS>) => void;
   currentUserNombre: string;
+  onDeleteFoto?: (fotoId: string) => void;
+  onClearAllFotos?: () => void;
 }
 
 export const FotosGallery: React.FC<FotosGalleryProps> = ({
@@ -34,6 +37,8 @@ export const FotosGallery: React.FC<FotosGalleryProps> = ({
   obraLng,
   onAddFoto,
   currentUserNombre,
+  onDeleteFoto,
+  onClearAllFotos,
 }) => {
   const permisos = PERMISOS_POR_ROL[userRole];
   const [selectedFoto, setSelectedFoto] = useState<FotoGPS | null>(null);
@@ -213,7 +218,7 @@ export const FotosGallery: React.FC<FotosGalleryProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {fotos.length > 0 && (
             <button
               onClick={handleDownloadAllZip}
@@ -222,6 +227,23 @@ export const FotosGallery: React.FC<FotosGalleryProps> = ({
             >
               <Package className="w-3.5 h-3.5 text-slate-600" />
               <span>Descargar ({fotos.length})</span>
+            </button>
+          )}
+
+          {/* Botón para borrar todas las fotos existentes de la obra */}
+          {onClearAllFotos && fotos.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm(`¿Deseas borrar todas las fotografías existentes (${fotos.length}) de esta obra? Esta acción no se puede deshacer.`)) {
+                  onClearAllFotos();
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200 transition-smooth"
+              title="Borrar todas las fotos existentes de esta obra"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              <span>Borrar Fotos ({fotos.length})</span>
             </button>
           )}
 
@@ -273,10 +295,27 @@ export const FotosGallery: React.FC<FotosGalleryProps> = ({
                 />
 
                 {/* Badge de Distancia GPS */}
-                <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-slate-950/75 backdrop-blur-xs text-white text-[10px] font-semibold flex items-center gap-1">
+                <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-slate-950/75 backdrop-blur-xs text-white text-[10px] font-semibold flex items-center gap-1 z-10">
                   <MapPin className="w-2.5 h-2.5 text-amber-400" />
-                  <span>{foto.distanciaMetrosAObra || 0}m de obra</span>
+                  <span>{foto.distanciaMetrosAObra || 0}m</span>
                 </div>
+
+                {/* Botón para borrar fotografía individual */}
+                {onDeleteFoto && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`¿Deseas eliminar la fotografía "${foto.titulo}"?`)) {
+                        onDeleteFoto(foto.id);
+                      }
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-950/75 hover:bg-rose-600 text-white transition-colors z-20 shadow-sm"
+                    title="Eliminar esta fotografía"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
 
                 {/* Botón flotante para ver detalle */}
                 <button
@@ -293,16 +332,33 @@ export const FotosGallery: React.FC<FotosGalleryProps> = ({
                 <h5 className="text-xs font-bold text-slate-800 line-clamp-1">{foto.titulo}</h5>
                 <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
                   <span>{foto.fechaCaptura}</span>
-                  <a
-                    href={foto.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-slate-400 hover:text-sky-600 p-0.5"
-                    title="Descargar original"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </a>
+                  <div className="flex items-center gap-1.5">
+                    {onDeleteFoto && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`¿Deseas eliminar la fotografía "${foto.titulo}"?`)) {
+                            onDeleteFoto(foto.id);
+                          }
+                        }}
+                        className="text-slate-400 hover:text-rose-600 p-0.5"
+                        title="Eliminar fotografía"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <a
+                      href={foto.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-slate-400 hover:text-sky-600 p-0.5"
+                      title="Descargar original"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
@@ -353,17 +409,35 @@ export const FotosGallery: React.FC<FotosGalleryProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100 flex-wrap gap-2">
                 <span>Fotografiado por: <strong>{selectedFoto.subidoPor}</strong> el {selectedFoto.fechaCaptura}</span>
-                <a
-                  href={selectedFoto.url}
-                  download={`${selectedFoto.titulo.replace(/\s+/g, '_')}.jpg`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" /> Descargar Fotografía
-                </a>
+                <div className="flex items-center gap-2">
+                  {onDeleteFoto && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm(`¿Deseas eliminar la fotografía "${selectedFoto.titulo}"?`)) {
+                          onDeleteFoto(selectedFoto.id);
+                          setSelectedFoto(null);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-semibold flex items-center gap-1.5 border border-rose-200 transition-colors"
+                      title="Eliminar esta fotografía"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                      <span>Eliminar Foto</span>
+                    </button>
+                  )}
+                  <a
+                    href={selectedFoto.url}
+                    download={`${selectedFoto.titulo.replace(/\s+/g, '_')}.jpg`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold flex items-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Descargar Fotografía
+                  </a>
+                </div>
               </div>
             </div>
           </div>

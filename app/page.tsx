@@ -158,8 +158,11 @@ export default function HomePage() {
   // Pantalla de inicio obligatoria por defecto al cargar la app
   const [showLoginModal, setShowLoginModal] = useState(true);
 
-  // Rol activo (RBAC interactivo derivado de la sesión)
-  const [currentRole, setCurrentRole] = useState<UserRole>(currentUser?.role || 'ADMIN');
+  // Rol activo (RBAC interactivo derivado de la sesión, NUNCA Admin por defecto sin autenticar)
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => {
+    if (currentUser) return currentUser.role;
+    return 'CONSULTOR_EXTERNO';
+  });
   const [selectedObraId, setSelectedObraId] = useState<string>('obr-1');
   const [activeTabDetail, setActiveTabDetail] = useState<'timeline' | 'visitas' | 'fotos' | 'documentos'>('timeline');
   const [activeView, setActiveView] = useState<'mapa' | 'listado'>('mapa');
@@ -181,10 +184,12 @@ export default function HomePage() {
 
   const permisos = permisosRoles[currentRole];
 
-  // Sincronizar el rol cuando cambia el usuario de sesión
+  // Sincronizar el rol cuando cambia el usuario de sesión (salida forzosa de modo admin si no hay sesión)
   useEffect(() => {
     if (currentUser) {
       setCurrentRole(currentUser.role);
+    } else {
+      setCurrentRole('CONSULTOR_EXTERNO');
     }
   }, [currentUser]);
 
@@ -200,6 +205,7 @@ export default function HomePage() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setCurrentRole('CONSULTOR_EXTERNO');
     setShowLoginModal(true);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('geobras_user_session');
@@ -209,6 +215,7 @@ export default function HomePage() {
   const handleCloseLoginModal = () => {
     setShowLoginModal(false);
     setCurrentUser(null);
+    setCurrentRole('CONSULTOR_EXTERNO');
     if (typeof window !== 'undefined') {
       localStorage.removeItem('geobras_user_session');
     }
@@ -737,6 +744,83 @@ export default function HomePage() {
     downloadFile(`Exportacion_Obras_${new Date().toISOString().split('T')[0]}.csv`, csvData, 'text/csv;charset=utf-8');
   };
 
+  // Eliminar fotografía individual permanente
+  const handleDeleteFoto = (fotoId: string) => {
+    setFotos((prev) => {
+      const updated = prev.filter((f) => f.id !== fotoId);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_fotos_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  };
+
+  // Borrar todas las fotografías de la obra seleccionada
+  const handleClearAllFotos = (obraId?: string) => {
+    const targetObraId = obraId || selectedObra?.id;
+    if (!targetObraId) return;
+    setFotos((prev) => {
+      const updated = prev.filter((f) => f.obraId !== targetObraId);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_fotos_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  };
+
+  // Eliminar documento/fichero permanente
+  const handleDeleteDocumento = (docId: string) => {
+    setDocumentos((prev) => {
+      const updated = prev.filter((d) => d.id !== docId);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_documentos_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  };
+
+  // Borrar todos los documentos de la obra seleccionada
+  const handleClearAllDocumentos = (obraId?: string) => {
+    const targetObraId = obraId || selectedObra?.id;
+    if (!targetObraId) return;
+    setDocumentos((prev) => {
+      const updated = prev.filter((d) => d.obraId !== targetObraId);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('geobras_documentos_list', JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+  };
+
+  // Limpiar toda la memoria caché y reiniciar datos a estado limpio
+  const handleClearAllCacheAndData = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('geobras_user_session');
+        localStorage.removeItem('geobras_fotos_list');
+        localStorage.removeItem('geobras_documentos_list');
+        localStorage.removeItem('geobras_visitas_list');
+        localStorage.removeItem('geobras_obras_list');
+        localStorage.removeItem('geobras_taxonomias');
+      } catch {}
+    }
+    setCurrentUser(null);
+    setCurrentRole('CONSULTOR_EXTERNO');
+    setFotos([]);
+    setDocumentos([]);
+    setVisitas([]);
+    setObras(OBRAS_MOCK);
+    setShowLoginModal(true);
+  };
+
   // Datos filtrados de la obra seleccionada
   const selectedVisitas = visitas.filter((v) => v.obraId === selectedObra?.id && !v.isDeleted);
   const selectedDocs = documentos.filter((d) => d.obraId === selectedObra?.id && !d.isDeleted);
@@ -765,6 +849,7 @@ export default function HomePage() {
         setActiveView={setActiveView}
         onGoHome={handleGoHome}
         onLogout={handleLogout}
+        onClearCache={handleClearAllCacheAndData}
         currentUser={currentUser || undefined}
       />
 
@@ -1166,6 +1251,8 @@ export default function HomePage() {
                     obraLng={selectedObra.lng}
                     onAddFoto={handleAddFoto}
                     currentUserNombre={currentUser?.name || 'Técnico'}
+                    onDeleteFoto={handleDeleteFoto}
+                    onClearAllFotos={() => handleClearAllFotos(selectedObra.id)}
                   />
                 )}
 
@@ -1174,7 +1261,8 @@ export default function HomePage() {
                     documentos={selectedDocs}
                     userRole={currentRole}
                     onUploadDocumento={handleUploadDocumento}
-                    onDeleteDocumento={handleSoftDeleteDocumento}
+                    onDeleteDocumento={handleDeleteDocumento}
+                    onClearAllDocumentos={() => handleClearAllDocumentos(selectedObra.id)}
                     currentUserNombre={currentUser?.name || 'Técnico'}
                   />
                 )}
@@ -1537,6 +1625,8 @@ export default function HomePage() {
                       obraLng={selectedObra.lng}
                       onAddFoto={handleAddFoto}
                       currentUserNombre={currentUser?.name || 'Técnico'}
+                      onDeleteFoto={handleDeleteFoto}
+                      onClearAllFotos={() => handleClearAllFotos(selectedObra.id)}
                     />
                   )}
 
@@ -1545,7 +1635,8 @@ export default function HomePage() {
                       documentos={selectedDocs}
                       userRole={currentRole}
                       onUploadDocumento={handleUploadDocumento}
-                      onDeleteDocumento={handleSoftDeleteDocumento}
+                      onDeleteDocumento={handleDeleteDocumento}
+                      onClearAllDocumentos={() => handleClearAllDocumentos(selectedObra.id)}
                       currentUserNombre={currentUser?.name || 'Técnico'}
                     />
                   )}
@@ -1801,10 +1892,12 @@ export default function HomePage() {
             title="Ver perfil de usuario o cambiar de sesión"
           >
             <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">
-              {currentUser ? currentUser.avatar : '??'}
+              {currentUser ? currentUser.avatar : '?'}
             </div>
-            <span className="text-[11px] font-medium">{currentUser?.name || 'Invitado'}</span>
-            <span className="text-[10px] text-sky-400 font-mono">({currentRole})</span>
+            <span className="text-[11px] font-medium">{currentUser?.name || 'Sin sesión (Invitado)'}</span>
+            <span className="text-[10px] text-sky-400 font-mono">
+              ({currentUser ? currentRole : 'CONSULTA'})
+            </span>
           </button>
         </div>
       </footer>
@@ -1886,6 +1979,7 @@ export default function HomePage() {
         users={users}
         onLogin={handleLogin}
         onClose={handleCloseLoginModal}
+        onClearCache={handleClearAllCacheAndData}
       />
 
       {/* 7. Modal de Gestión Personal de Vocabulario y Taxonomías */}
