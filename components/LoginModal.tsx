@@ -56,8 +56,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    // Búsqueda estricta por correo electrónico
-    const targetUser = users.find((u) => u.email.toLowerCase() === trimmedInput);
+    // Búsqueda estricta por correo electrónico (consultando props y almacenamiento local sincronizado)
+    let candidateUsers = users;
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('geobras_users_list_v2') || localStorage.getItem('geobras_users_list');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            candidateUsers = parsed;
+          }
+        }
+      } catch {}
+    }
+
+    const targetUser = candidateUsers.find((u) => u.email.toLowerCase() === trimmedInput);
 
     if (!targetUser) {
       setErrorMsg('Credenciales de acceso incorrectas.');

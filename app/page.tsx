@@ -102,6 +102,57 @@ function sanitizeUsersList(rawUsers: any[]): User[] {
   return result;
 }
 
+const USERS_STORAGE_KEY_V2 = 'geobras_users_list_v2';
+const USERS_STORAGE_KEY_LEGACY = 'geobras_users_list';
+
+function getStoredUsers(): User[] {
+  if (typeof window === 'undefined') {
+    return USUARIOS_MOCK;
+  }
+  try {
+    const savedV2 = localStorage.getItem(USERS_STORAGE_KEY_V2);
+    if (savedV2) {
+      const parsed = JSON.parse(savedV2);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return sanitizeUsersList(parsed);
+      }
+    }
+    const savedLegacy = localStorage.getItem(USERS_STORAGE_KEY_LEGACY);
+    if (savedLegacy) {
+      const parsed = JSON.parse(savedLegacy);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const sanitized = sanitizeUsersList(parsed);
+        try {
+          localStorage.setItem(USERS_STORAGE_KEY_V2, JSON.stringify(sanitized));
+        } catch {}
+        return sanitized;
+      }
+    }
+    try {
+      localStorage.setItem(USERS_STORAGE_KEY_V2, JSON.stringify(USUARIOS_MOCK));
+      localStorage.setItem(USERS_STORAGE_KEY_LEGACY, JSON.stringify(USUARIOS_MOCK));
+    } catch {}
+    return USUARIOS_MOCK;
+  } catch (e) {
+    console.error('Error leyendo usuarios de localStorage:', e);
+    return USUARIOS_MOCK;
+  }
+}
+
+function saveStoredUsers(list: User[]): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const sanitized = sanitizeUsersList(list);
+    const serialized = JSON.stringify(sanitized);
+    localStorage.setItem(USERS_STORAGE_KEY_V2, serialized);
+    localStorage.setItem(USERS_STORAGE_KEY_LEGACY, serialized);
+    return true;
+  } catch (e) {
+    console.error('Error guardando usuarios en localStorage:', e);
+    return false;
+  }
+}
+
 export default function HomePage() {
   // Estado Principal con Persistencia Local
   const [obras, setObras] = useState<Obra[]>(() => {
@@ -169,39 +220,15 @@ export default function HomePage() {
 
   const [isClient, setIsClient] = useState(false);
 
-  // Usuarios y Matriz de Permisos Dinámica con Persistencia Local
-  const [users, setUsers] = useState<User[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('geobras_users_list');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          return sanitizeUsersList(parsed);
-        }
-      } catch {}
-    }
-    return USUARIOS_MOCK;
-  });
+  // Usuarios y Matriz de Permisos Dinámica con Persistencia Local Garantizada
+  const [users, setUsers] = useState<User[]>(getStoredUsers);
   const [permisosRoles, setPermisosRoles] = useState<Record<UserRole, PermisosRol>>(PERMISOS_POR_ROL);
 
-  // Sincronización en cliente y purga de duplicados en localStorage
+  // Sincronización en cliente y carga fiable de usuarios persistidos
   useEffect(() => {
     setIsClient(true);
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('geobras_users_list');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const sanitized = sanitizeUsersList(parsed);
-          setUsers(sanitized);
-          localStorage.setItem('geobras_users_list', JSON.stringify(sanitized));
-        } else {
-          localStorage.setItem('geobras_users_list', JSON.stringify(USUARIOS_MOCK));
-        }
-      } catch {
-        setUsers(USUARIOS_MOCK);
-      }
-    }
+    const stored = getStoredUsers();
+    setUsers(stored);
   }, []);
 
   // Sesión y Autenticación de Usuario (Inicia cerrada / null por defecto para requerir identificación limpia)
@@ -293,30 +320,31 @@ export default function HomePage() {
     setMobileSheetDismissed(false);
   };
 
-  // Handlers para administración de usuarios y permisos con persistencia en localStorage
+  // Handlers para administración de usuarios y permisos con persistencia garantizada
   const handleUpdateUserRole = (userId: string, newRole: UserRole) => {
-    setUsers((prev) => {
-      const updated = prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u));
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('geobras_users_list', JSON.stringify(updated));
-      }
-      return updated;
-    });
+    const currentUsers = getStoredUsers();
+    const updated = currentUsers.map((u) => (u.id === userId ? { ...u, role: newRole } : u));
+    saveStoredUsers(updated);
+    setUsers(updated);
+
     if (currentUser && currentUser.id === userId) {
       const updatedUser = { ...currentUser, role: newRole };
       setCurrentUser(updatedUser);
       setCurrentRole(newRole);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('geobras_user_session', JSON.stringify(updatedUser));
+        try {
+          localStorage.setItem('geobras_user_session', JSON.stringify(updatedUser));
+        } catch {}
       }
     }
   };
 
   const handleAddUser = (newUser: Omit<User, 'id'>) => {
     const cleanEmail = newUser.email.trim().toLowerCase();
+    const currentUsers = getStoredUsers();
     
     // Validar si ya existe un usuario con este correo electrónico
-    if (users.some((u) => u.email.toLowerCase() === cleanEmail)) {
+    if (currentUsers.some((u) => u.email.toLowerCase() === cleanEmail)) {
       alert(`El correo "${cleanEmail}" ya pertenece a un usuario existente. Por favor, utiliza un correo diferente.`);
       return;
     }
@@ -324,23 +352,22 @@ export default function HomePage() {
     const created: User = {
       ...newUser,
       email: cleanEmail,
-      id: `usr-${Date.now()}`,
+      id: `usr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      password: newUser.password?.trim() || '1234',
+      requiresPassword: true,
     };
 
-    setUsers((prev) => {
-      const updated = sanitizeUsersList([...prev, created]);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('geobras_users_list', JSON.stringify(updated));
-      }
-      return updated;
-    });
+    const updated = sanitizeUsersList([...currentUsers, created]);
+    saveStoredUsers(updated);
+    setUsers(updated);
   };
 
   const handleEditUser = (updatedUser: User) => {
     const cleanEmail = updatedUser.email.trim().toLowerCase();
+    const currentUsers = getStoredUsers();
     
     // Validar si el correo ya existe en otro usuario
-    const emailConflict = users.some(
+    const emailConflict = currentUsers.some(
       (u) => u.id !== updatedUser.id && u.email.toLowerCase() === cleanEmail
     );
     if (emailConflict) {
@@ -354,43 +381,38 @@ export default function HomePage() {
       email: cleanEmail,
       password: updatedUser.password?.trim() || '1234',
       avatar: updatedUser.name.trim().length >= 2 ? updatedUser.name.trim().slice(0, 2).toUpperCase() : 'US',
+      requiresPassword: true,
     };
 
-    setUsers((prev) => {
-      const updated = prev.map((u) => (u.id === cleanUser.id ? cleanUser : u));
-      const sanitized = sanitizeUsersList(updated);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('geobras_users_list', JSON.stringify(sanitized));
-      }
-      return sanitized;
-    });
+    const updated = sanitizeUsersList(currentUsers.map((u) => (u.id === cleanUser.id ? cleanUser : u)));
+    saveStoredUsers(updated);
+    setUsers(updated);
 
     if (currentUser && currentUser.id === cleanUser.id) {
       setCurrentUser(cleanUser);
       setCurrentRole(cleanUser.role);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('geobras_user_session', JSON.stringify(cleanUser));
+        try {
+          localStorage.setItem('geobras_user_session', JSON.stringify(cleanUser));
+        } catch {}
       }
     }
   };
 
   const handleDeleteUser = (userId: string) => {
-    const targetUser = users.find((u) => u.id === userId);
-    const adminCount = users.filter((u) => u.role === 'ADMIN').length;
+    const currentUsers = getStoredUsers();
+    const targetUser = currentUsers.find((u) => u.id === userId);
+    const adminCount = currentUsers.filter((u) => u.role === 'ADMIN').length;
 
     if (targetUser?.role === 'ADMIN' && adminCount <= 1) {
       alert('No es posible eliminar al único Administrador del sistema. Debe existir al menos un usuario Administrador activo.');
       return;
     }
 
-    setUsers((prev) => {
-      const filtered = prev.filter((u) => u.id !== userId);
-      const updated = sanitizeUsersList(filtered);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('geobras_users_list', JSON.stringify(updated));
-      }
-      return updated;
-    });
+    const filtered = currentUsers.filter((u) => u.id !== userId);
+    const updated = sanitizeUsersList(filtered);
+    saveStoredUsers(updated);
+    setUsers(updated);
 
     if (currentUser?.id === userId) {
       handleLogout();
@@ -931,6 +953,7 @@ export default function HomePage() {
         localStorage.removeItem('geobras_obras_list');
         localStorage.removeItem('geobras_taxonomias');
         localStorage.removeItem('geobras_users_list');
+        localStorage.removeItem('geobras_users_list_v2');
       } catch {}
     }
     setCurrentUser(null);
