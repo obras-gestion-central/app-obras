@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { User, UserRole, PermisosRol } from '@/types';
+import { User, UserRole, PermisosRol, UserRegistryRecord } from '@/types';
+import { PERMISOS_POR_ROL } from '@/data/mockData';
+import { formatDateTime, formatDate, downloadFile } from '@/lib/utils';
+import { exportRegistryToCSV, getUserRegistry } from '@/lib/userRegistry';
 import { 
   Users, 
   Shield, 
@@ -17,7 +20,11 @@ import {
   FileText,
   ChevronDown,
   Edit2,
-  KeyRound
+  KeyRound,
+  Lock,
+  Unlock,
+  AlertTriangle,
+  Download
 } from 'lucide-react';
 
 interface AdminUsersRolesModalProps {
@@ -28,6 +35,7 @@ interface AdminUsersRolesModalProps {
   onAddUser: (newUser: Omit<User, 'id'>) => void;
   onEditUser?: (updatedUser: User) => void;
   onDeleteUser?: (userId: string) => void;
+  onToggleUserStatus?: (userId: string, statusType: 'activo' | 'bloqueado') => void;
   permisosRoles: Record<UserRole, PermisosRol>;
   onTogglePermiso: (role: UserRole, permisoKey: keyof PermisosRol) => void;
 }
@@ -40,6 +48,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   onAddUser,
   onEditUser,
   onDeleteUser,
+  onToggleUserStatus,
   permisosRoles,
   onTogglePermiso,
 }) => {
@@ -54,6 +63,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState<UserRole>('TECNICO_CAMPO');
   const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserPermisos, setNewUserPermisos] = useState<PermisosRol>({ ...PERMISOS_POR_ROL.TECNICO_CAMPO });
   const [formError, setFormError] = useState('');
 
   // Estado para editar usuario
@@ -62,7 +72,20 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editRole, setEditRole] = useState<UserRole>('TECNICO_CAMPO');
+  const [editActivo, setEditActivo] = useState(true);
+  const [editBloqueado, setEditBloqueado] = useState(false);
+  const [editPermisos, setEditPermisos] = useState<PermisosRol>({ ...PERMISOS_POR_ROL.TECNICO_CAMPO });
   const [editError, setEditError] = useState('');
+
+  const handleExportRegistryCSV = () => {
+    const records = getUserRegistry();
+    const csvContent = exportRegistryToCSV(records);
+    downloadFile(
+      `Auditoria_Registro_Usuarios_${new Date().toISOString().split('T')[0]}.csv`,
+      csvContent,
+      'text/csv;charset=utf-8'
+    );
+  };
 
   const handleStartEdit = (u: User) => {
     setEditingUserId(u.id);
@@ -70,6 +93,9 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
     setEditEmail(u.email);
     setEditPassword(u.password || '');
     setEditRole(u.role);
+    setEditActivo(u.activo !== false);
+    setEditBloqueado(Boolean(u.bloqueado));
+    setEditPermisos(u.permisos ? { ...u.permisos } : { ...permisosRoles[u.role] });
     setEditError('');
     setShowAddUserForm(false);
   };
@@ -119,6 +145,9 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
       password: cleanPass,
       role: editRole,
       avatar: trimmedName.length >= 2 ? trimmedName.slice(0, 2).toUpperCase() : 'US',
+      activo: editActivo,
+      bloqueado: editBloqueado,
+      permisos: editPermisos,
     });
 
     setEditingUserId(null);
@@ -176,11 +205,15 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
       avatar: initials,
       password: cleanPass,
       requiresPassword: true,
+      activo: true,
+      bloqueado: false,
+      permisos: newUserPermisos,
     });
 
     setNewUserName('');
     setNewUserEmail('');
     setNewUserPassword('');
+    setNewUserPermisos({ ...permisosRoles.TECNICO_CAMPO });
     setFormError('');
     setShowAddUserForm(false);
   };
@@ -254,9 +287,9 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
               <Shield className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-bold text-white leading-tight">Usuarios, Roles y Permisos</h3>
+              <h3 className="text-sm sm:text-base font-bold text-white leading-tight">Tabla de Registros y Permisos de Usuarios</h3>
               <p className="text-[10px] sm:text-xs text-slate-400">
-                Administración de equipo y control de acceso RBAC
+                Gestión oficial de identidades, control de acceso y verificación de credenciales
               </p>
             </div>
           </div>
@@ -282,7 +315,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>Equipo ({users.length})</span>
+              <span>Tabla de Registros ({users.length})</span>
             </button>
 
             <button
@@ -294,19 +327,32 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
               }`}
             >
               <Sliders className="w-4 h-4" />
-              <span>Permisos por Rol</span>
+              <span>Matriz por Rol</span>
             </button>
           </div>
 
           {activeTab === 'usuarios' && (
-            <button
-              onClick={() => setShowAddUserForm(!showAddUserForm)}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-xs transition-colors shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline sm:inline">Añadir Compañero</span>
-              <span className="xs:hidden sm:hidden">Añadir</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleExportRegistryCSV}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-xs transition-colors shrink-0"
+                title="Descargar tabla oficial de usuarios en CSV para auditoría"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Auditoría CSV</span>
+                <span className="sm:hidden">CSV</span>
+              </button>
+
+              <button
+                onClick={() => setShowAddUserForm(!showAddUserForm)}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-[11px] sm:text-xs font-bold rounded-lg shadow-xs transition-colors shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline sm:inline">Nuevo Registro</span>
+                <span className="xs:hidden sm:hidden">+ Nuevo</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -344,7 +390,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                         type="text"
                         value={newUserName}
                         onChange={(e) => setNewUserName(e.target.value)}
-                        placeholder="Ej: Raúl Navarro (Ingeniero)"
+                        placeholder="Nombre y apellidos"
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-sky-500"
                         required
                         autoComplete="off"
@@ -388,7 +434,11 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                       <label className="block font-semibold text-slate-700 mb-1">Rango / Rol Asignado *</label>
                       <select
                         value={newUserRole}
-                        onChange={(e) => setNewUserRole(e.target.value as UserRole)}
+                        onChange={(e) => {
+                          const r = e.target.value as UserRole;
+                          setNewUserRole(r);
+                          setNewUserPermisos({ ...permisosRoles[r] });
+                        }}
                         className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-medium focus:outline-none focus:ring-1 focus:ring-sky-500"
                       >
                         <option value="TECNICO_CAMPO">🔍 Técnico de Campo (Sin $)</option>
@@ -396,6 +446,29 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                         <option value="ADMIN">👑 Administrador</option>
                         <option value="CONSULTOR_EXTERNO">📊 Consultor Externo</option>
                       </select>
+                    </div>
+                  </div>
+
+                  {/* Configuración granular de permisos para este registro */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] font-bold text-slate-800 flex items-center gap-1">
+                        <Shield className="w-3.5 h-3.5 text-sky-600" /> Permisos Individuales Concedidos:
+                      </span>
+                      <span className="text-[10px] text-slate-400">Personaliza los accesos de este registro</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                      {permisosDefinicion.map((p) => (
+                        <label key={p.key} className="flex items-center gap-1.5 text-[11px] text-slate-700 font-medium cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(newUserPermisos[p.key])}
+                            onChange={(e) => setNewUserPermisos((prev) => ({ ...prev, [p.key]: e.target.checked }))}
+                            className="w-3.5 h-3.5 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
+                          />
+                          <span className="truncate">{p.label}</span>
+                        </label>
+                      ))}
                     </div>
                   </div>
 
@@ -414,7 +487,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                       type="submit"
                       className="px-4 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs"
                     >
-                      Guardar y Asignar Rol
+                      Guardar y Crear Registro
                     </button>
                   </div>
                 </form>
@@ -429,10 +502,10 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                 >
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
-                      <Edit2 className="w-4 h-4 text-sky-600" /> Modificar Datos y Contraseña del Usuario
+                      <Edit2 className="w-4 h-4 text-sky-600" /> Modificar Datos, Contraseña y Permisos del Usuario
                     </h4>
                     <span className="text-[10px] bg-sky-200/80 text-sky-800 font-bold px-2 py-0.5 rounded-full">
-                      Editando perfil
+                      Editando registro
                     </span>
                   </div>
 
@@ -487,7 +560,11 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                       <label className="block font-semibold text-slate-700 mb-1">Rango / Rol Asignado *</label>
                       <select
                         value={editRole}
-                        onChange={(e) => setEditRole(e.target.value as UserRole)}
+                        onChange={(e) => {
+                          const r = e.target.value as UserRole;
+                          setEditRole(r);
+                          setEditPermisos({ ...permisosRoles[r] });
+                        }}
                         className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-medium focus:outline-none focus:ring-1 focus:ring-sky-500"
                       >
                         <option value="ADMIN">👑 Administrador (Acceso Total)</option>
@@ -495,6 +572,54 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                         <option value="TECNICO_CAMPO">🔍 Técnico de Campo (Sin $)</option>
                         <option value="CONSULTOR_EXTERNO">📊 Consultor Externo</option>
                       </select>
+                    </div>
+                  </div>
+
+                  {/* Estado y Bloqueo de Acceso */}
+                  <div className="pt-2 border-t border-sky-200 space-y-2">
+                    <div className="flex flex-wrap items-center gap-4 bg-white/90 p-2.5 rounded-xl border border-sky-200 text-xs">
+                      <label className="flex items-center gap-2 font-bold text-slate-800 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={editActivo}
+                          onChange={(e) => setEditActivo(e.target.checked)}
+                          className="w-4 h-4 text-emerald-600 rounded cursor-pointer"
+                        />
+                        <span className="flex items-center gap-1 text-emerald-800 font-semibold">
+                          <Check className="w-3.5 h-3.5 text-emerald-600" /> Cuenta Activa (Permite Iniciar Sesión)
+                        </span>
+                      </label>
+
+                      <label className="flex items-center gap-2 font-bold text-rose-800 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={editBloqueado}
+                          onChange={(e) => setEditBloqueado(e.target.checked)}
+                          className="w-4 h-4 text-rose-600 rounded cursor-pointer"
+                        />
+                        <span className="flex items-center gap-1 text-rose-800 font-semibold">
+                          <Lock className="w-3.5 h-3.5 text-rose-600" /> Bloqueo de Seguridad (Acceso Denegado)
+                        </span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-800 block mb-1">
+                        Permisos Granulares Individuales para este Registro:
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white/90 p-2.5 rounded-xl border border-sky-200">
+                        {permisosDefinicion.map((p) => (
+                          <label key={p.key} className="flex items-center gap-1.5 text-[11px] text-slate-700 font-medium cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(editPermisos[p.key])}
+                              onChange={(e) => setEditPermisos((prev) => ({ ...prev, [p.key]: e.target.checked }))}
+                              className="w-3.5 h-3.5 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
+                            />
+                            <span className="truncate">{p.label}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -516,60 +641,120 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                 </form>
               )}
 
-              {/* VISTA MÓVIL: TARJETAS RESPONSIVE DE USUARIOS (< sm) */}
+              {/* VISTA MÓVIL: TARJETAS RESPONSIVE DE REGISTROS DE USUARIOS (< sm) */}
               <div className="sm:hidden space-y-2.5">
                 {users.map((u) => {
                   const rolPerm = permisosRoles[u.role];
-                  const adminCount = users.filter((x) => x.role === 'ADMIN').length;
-                  const canDelete = onDeleteUser && (u.role !== 'ADMIN' || adminCount > 1);
+                  const userPerms = u.permisos || rolPerm;
+                  const adminCount = users.filter((x) => x.role === 'ADMIN' && x.activo !== false && !x.bloqueado).length;
+                  const isProtectedAdmin = u.role === 'ADMIN' && adminCount <= 1;
+                  const canDelete = onDeleteUser && (!isProtectedAdmin);
+                  const isBlocked = Boolean(u.bloqueado);
+                  const isActive = u.activo !== false && !isBlocked;
+
+                  const activePermsCount = [
+                    userPerms.verDatosEconomicos,
+                    userPerms.editarObras,
+                    userPerms.borrarObras,
+                    userPerms.crearVisitas,
+                    userPerms.subirDocumentos,
+                    userPerms.accederPapelera,
+                    userPerms.exportarDossier,
+                    userPerms.exportarExcel,
+                  ].filter(Boolean).length;
 
                   return (
                     <div
                       key={u.id}
-                      className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2.5"
+                      className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs space-y-3"
                     >
                       {/* Cabecera del usuario */}
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                          <div className="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
                             {u.avatar}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-bold text-slate-900 text-xs truncate">{u.name}</div>
+                            <div className="font-bold text-slate-900 text-xs truncate flex items-center gap-1.5">
+                              <span>{u.name}</span>
+                              {u.role === 'ADMIN' && (
+                                <span className="text-[10px]" title="Administrador">👑</span>
+                              )}
+                            </div>
                             <div className="text-[10px] text-slate-500 font-mono truncate">{u.email}</div>
                           </div>
                         </div>
 
-                        {/* Estado económico */}
+                        {/* Estado de seguridad */}
                         <div className="shrink-0 flex items-center gap-1.5">
-                          {rolPerm.verDatosEconomicos ? (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
-                              <Eye className="w-2.5 h-2.5" /> Con $
+                          {isBlocked ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-100 text-rose-800 flex items-center gap-1 border border-rose-200">
+                              <Lock className="w-2.5 h-2.5" /> Bloqueado
+                            </span>
+                          ) : isActive ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1 border border-emerald-200">
+                              <Check className="w-2.5 h-2.5" /> Activo
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1">
-                              <EyeOff className="w-2.5 h-2.5" /> Sin $
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-700 flex items-center gap-1 border border-slate-200">
+                              <X className="w-2.5 h-2.5" /> Inactivo
                             </span>
                           )}
                         </div>
                       </div>
 
-                      {/* Selector de Rol táctil de ancho completo */}
+                      {/* Detalles de permisos y accesos */}
+                      <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-[11px] space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 font-medium">Permisos asignados:</span>
+                          <span className="font-bold text-slate-800">{activePermsCount} de 8 concedidos</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            userPerms.verDatosEconomicos ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {userPerms.verDatosEconomicos ? '€ Datos Financieros' : 'Sin Datos $'}
+                          </span>
+                          {userPerms.editarObras && <span className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[9px] text-slate-700">Edición</span>}
+                          {userPerms.borrarObras && <span className="bg-rose-50 border border-rose-200 text-rose-700 px-1.5 py-0.5 rounded text-[9px]">Borrado</span>}
+                          {userPerms.subirDocumentos && <span className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[9px] text-slate-700">Docs/Fotos</span>}
+                        </div>
+                        <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-200/60 flex items-center justify-between">
+                          <span>Último acceso:</span>
+                          <span className="font-mono text-slate-700 font-medium">
+                            {u.ultimoAcceso ? formatDateTime(u.ultimoAcceso) : 'Sin accesos'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Selector de Rol táctil y acciones */}
                       <div className="pt-2 border-t border-slate-100 space-y-2">
                         <div className="flex items-center justify-between">
                           <label className="text-[10px] font-semibold text-slate-500">
                             Rol del usuario:
                           </label>
-                          {onEditUser && (
-                            <button
-                              type="button"
-                              onClick={() => handleStartEdit(u)}
-                              className="text-[11px] text-sky-600 font-bold flex items-center gap-1 hover:underline"
-                            >
-                              <Edit2 className="w-3 h-3" /> Editar datos / clave
-                            </button>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {onToggleUserStatus && !isProtectedAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => onToggleUserStatus(u.id, isBlocked ? 'bloqueado' : 'activo')}
+                                className="text-[11px] font-bold text-slate-600 hover:text-slate-900 underline"
+                              >
+                                {isBlocked ? 'Desbloquear' : isActive ? 'Desactivar' : 'Activar'}
+                              </button>
+                            )}
+                            {onEditUser && (
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(u)}
+                                className="text-[11px] text-sky-600 font-bold flex items-center gap-1 hover:underline"
+                              >
+                                <Edit2 className="w-3 h-3" /> Editar
+                              </button>
+                            )}
+                          </div>
                         </div>
+
                         <div className="relative">
                           <select
                             value={u.role}
@@ -583,6 +768,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                           </select>
                           <ChevronDown className="w-4 h-4 text-slate-500 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
                         </div>
+
                         {canDelete && (
                           <div className="pt-1 flex justify-end">
                             <button
@@ -604,36 +790,65 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                 })}
               </div>
 
-              {/* VISTA ESCRITORIO: TABLA COMPLETA (>= sm) */}
+              {/* VISTA ESCRITORIO: TABLA COMPLETA DE REGISTROS (>= sm) */}
               <div className="hidden sm:block bg-white rounded-2xl border border-slate-200 overflow-x-auto shadow-xs">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
-                      <th className="py-2.5 px-4">Usuario</th>
-                      <th className="py-2.5 px-4">Correo</th>
-                      <th className="py-2.5 px-4">Rango / Rol Activo</th>
-                      <th className="py-2.5 px-4">Acceso a Datos Económicos</th>
-                      <th className="py-2.5 px-4 text-right">Acciones</th>
+                      <th className="py-2.5 px-3">Usuario</th>
+                      <th className="py-2.5 px-3">Correo</th>
+                      <th className="py-2.5 px-3">Rol</th>
+                      <th className="py-2.5 px-3">Estado</th>
+                      <th className="py-2.5 px-3">Permisos</th>
+                      <th className="py-2.5 px-3">Último Acceso / Alta</th>
+                      <th className="py-2.5 px-3 text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {users.map((u) => {
                       const rolPerm = permisosRoles[u.role];
-                      const adminCount = users.filter((x) => x.role === 'ADMIN').length;
-                      const canDelete = onDeleteUser && (u.role !== 'ADMIN' || adminCount > 1);
+                      const userPerms = u.permisos || rolPerm;
+                      const adminCount = users.filter((x) => x.role === 'ADMIN' && x.activo !== false && !x.bloqueado).length;
+                      const isProtectedAdmin = u.role === 'ADMIN' && adminCount <= 1;
+                      const canDelete = onDeleteUser && (!isProtectedAdmin);
+                      const isBlocked = Boolean(u.bloqueado);
+                      const isActive = u.activo !== false && !isBlocked;
+
+                      const activePermsCount = [
+                        userPerms.verDatosEconomicos,
+                        userPerms.editarObras,
+                        userPerms.borrarObras,
+                        userPerms.crearVisitas,
+                        userPerms.subirDocumentos,
+                        userPerms.accederPapelera,
+                        userPerms.exportarDossier,
+                        userPerms.exportarExcel,
+                      ].filter(Boolean).length;
 
                       return (
                         <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3 px-4 font-semibold text-slate-900 flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-[10px]">
-                              {u.avatar}
+                          {/* Columna Usuario */}
+                          <td className="py-3 px-3 font-semibold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                                {u.avatar}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="truncate flex items-center gap-1">
+                                  <span>{u.name}</span>
+                                  {u.role === 'ADMIN' && (
+                                    <span className="text-[11px]" title="Administrador">👑</span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            <span>{u.name}</span>
                           </td>
 
-                          <td className="py-3 px-4 text-slate-600 font-mono text-[11px]">{u.email}</td>
+                          {/* Columna Correo */}
+                          <td className="py-3 px-3 text-slate-600 font-mono text-[11px]">{u.email}</td>
 
-                          <td className="py-3 px-4">
+                          {/* Columna Rol */}
+                          <td className="py-3 px-3">
                             <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${
                               u.role === 'ADMIN' ? 'bg-purple-50 text-purple-700 border-purple-200' :
                               u.role === 'JEFE_OBRA' ? 'bg-sky-50 text-sky-700 border-sky-200' :
@@ -644,26 +859,78 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                             </span>
                           </td>
 
-                          <td className="py-3 px-4">
-                            {rolPerm.verDatosEconomicos ? (
-                              <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                                <Eye className="w-3.5 h-3.5" /> Visible
-                              </span>
-                            ) : (
-                              <span className="text-amber-600 font-semibold flex items-center gap-1">
-                                <EyeOff className="w-3.5 h-3.5" /> Oculto (Confidencial)
-                              </span>
-                            )}
+                          {/* Columna Estado */}
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-1.5">
+                              {isBlocked ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 flex items-center gap-1 border border-rose-200">
+                                  <Lock className="w-3 h-3 text-rose-600" /> Bloqueado
+                                </span>
+                              ) : isActive ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1 border border-emerald-200">
+                                  <Check className="w-3 h-3 text-emerald-600" /> Activo
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 flex items-center gap-1 border border-slate-200">
+                                  <X className="w-3 h-3 text-slate-500" /> Inactivo
+                                </span>
+                              )}
+
+                              {onToggleUserStatus && !isProtectedAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => onToggleUserStatus(u.id, isBlocked ? 'bloqueado' : 'activo')}
+                                  className="text-[10px] text-slate-400 hover:text-slate-800 p-0.5 rounded hover:bg-slate-200/60"
+                                  title={isBlocked ? 'Desbloquear cuenta' : isActive ? 'Desactivar acceso' : 'Activar acceso'}
+                                >
+                                  {isBlocked ? <Unlock className="w-3.5 h-3.5 text-amber-600" /> : <Sliders className="w-3.5 h-3.5" />}
+                                </button>
+                              )}
+                            </div>
                           </td>
 
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
+                          {/* Columna Permisos */}
+                          <td className="py-3 px-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                  userPerms.verDatosEconomicos ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {userPerms.verDatosEconomicos ? '€ Datos $' : 'Sin $'}
+                                </span>
+                                <span className="text-[10px] font-semibold text-slate-500">
+                                  {activePermsCount}/8 activos
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-1 text-[9px] text-slate-500">
+                                {userPerms.editarObras && <span className="bg-slate-100 px-1 rounded">Edición</span>}
+                                {userPerms.borrarObras && <span className="bg-rose-50 text-rose-700 px-1 rounded">Borrar</span>}
+                                {userPerms.subirDocumentos && <span className="bg-slate-100 px-1 rounded">Docs/Fotos</span>}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Columna Último Acceso / Alta */}
+                          <td className="py-3 px-3">
+                            <div className="space-y-0.5 text-[10px]">
+                              <div className="text-slate-800 font-semibold font-mono">
+                                {u.ultimoAcceso ? formatDateTime(u.ultimoAcceso) : <span className="text-slate-400 font-sans italic">Sin accesos</span>}
+                              </div>
+                              <div className="text-slate-400 text-[9px]">
+                                Alta: {u.fechaRegistro ? formatDate(u.fechaRegistro) : 'Inicial'}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Columna Acciones */}
+                          <td className="py-3 px-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
                               {onEditUser && (
                                 <button
                                   type="button"
                                   onClick={() => handleStartEdit(u)}
                                   className="p-1.5 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors border border-slate-200"
-                                  title="Editar nombre, correo o contraseña"
+                                  title="Editar nombre, correo, clave o permisos individuales"
                                 >
                                   <Edit2 className="w-3.5 h-3.5" />
                                 </button>
@@ -672,8 +939,8 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                               <select
                                 value={u.role}
                                 onChange={(e) => onUpdateUserRole(u.id, e.target.value as UserRole)}
-                                className="text-xs bg-slate-50 border border-slate-300 rounded-lg py-1 px-2 font-medium focus:ring-1 focus:ring-sky-500 cursor-pointer"
-                                title="Cambia el rol del usuario para alterar sus permisos al instante"
+                                className="text-xs bg-slate-50 border border-slate-300 rounded-lg py-1 px-1.5 font-medium focus:ring-1 focus:ring-sky-500 cursor-pointer"
+                                title="Cambiar rol predeterminado"
                               >
                                 <option value="ADMIN">Administrador</option>
                                 <option value="JEFE_OBRA">Jefe de Obra</option>

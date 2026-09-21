@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Obra, VisitaReport, Documento, FotoGPS, TimelineEvent, TaxonomyItem, UserRole, EstadoObra, User, PermisosRol } from '@/types';
+import { Obra, VisitaReport, Documento, FotoGPS, TimelineEvent, TaxonomyItem, UserRole, EstadoObra, User, PermisosRol, UserRegistryRecord } from '@/types';
 import { 
   OBRAS_MOCK, 
   VISITAS_MOCK, 
@@ -13,6 +13,13 @@ import {
   PERMISOS_POR_ROL 
 } from '@/data/mockData';
 import { formatCurrency, formatDate, exportObrasToCSV, downloadFile } from '@/lib/utils';
+import { 
+  getUserRegistry, 
+  saveUserRegistry, 
+  sanitizeRegistryRecords, 
+  REGISTRO_ADMIN_DEFECTO, 
+  REGISTRO_USUARIOS_STORAGE_KEY 
+} from '@/lib/userRegistry';
 import { Navbar } from '@/components/Navbar';
 import { MapView } from '@/components/MapView';
 import { TimelineFeed } from '@/components/TimelineFeed';
@@ -36,121 +43,32 @@ import {
   FileDown, 
   CheckCircle2, 
   EyeOff, 
-  Trash2,
-  Clock,
-  TrendingUp,
-  FolderOpen,
-  X,
-  ArrowLeft,
-  ChevronRight,
-  Filter,
-  Layers,
-  Map as MapIcon,
-  Maximize2,
-  Home,
-  LogOut,
-  Shield,
-  User as UserIcon,
-  Tag
+  Trash2, 
+  Clock, 
+  TrendingUp, 
+  FolderOpen, 
+  X, 
+  ArrowLeft, 
+  ChevronRight, 
+  Filter, 
+  Layers, 
+  Map as MapIcon, 
+  Maximize2, 
+  Home, 
+  LogOut, 
+  Shield, 
+  User as UserIcon, 
+  Tag 
 } from 'lucide-react';
 
-// Función de saneamiento y deduplicación de usuarios sin datos emulados
-function sanitizeUsersList(rawUsers: any[]): User[] {
-  if (!Array.isArray(rawUsers) || rawUsers.length === 0) {
-    return USUARIOS_MOCK;
-  }
-
-  const result: User[] = [];
-  const seenEmails = new Set<string>();
-  const seenIds = new Set<string>();
-
-  for (const u of rawUsers) {
-    if (!u || typeof u !== 'object') continue;
-    const email = (u.email || '').trim().toLowerCase();
-    const id = (u.id || '').trim();
-
-    if (!email || seenEmails.has(email)) continue;
-    if (!id || seenIds.has(id)) continue;
-
-    seenEmails.add(email);
-    seenIds.add(id);
-
-    const name = (u.name || '').trim() || 'Usuario';
-    const initials = (u.avatar || '').trim() || (name.length >= 2 ? name.slice(0, 2).toUpperCase() : 'US');
-
-    result.push({
-      id,
-      name,
-      email,
-      role: (u.role as UserRole) || 'TECNICO_CAMPO',
-      avatar: initials,
-      password: (u.password || '').trim() || '1234',
-      requiresPassword: true,
-    });
-  }
-
-  if (result.length === 0) {
-    return USUARIOS_MOCK;
-  }
-
-  // Garantizar que siempre haya al menos 1 Administrador para no perder acceso
-  const hasAdmin = result.some((u) => u.role === 'ADMIN');
-  if (!hasAdmin) {
-    result[0].role = 'ADMIN';
-  }
-
-  return result;
-}
-
-const USERS_STORAGE_KEY_V2 = 'geobras_users_list_v2';
-const USERS_STORAGE_KEY_LEGACY = 'geobras_users_list';
-
+// Persistencia estricta conectada a la Tabla Maestra de Registros de Usuarios
 function getStoredUsers(): User[] {
-  if (typeof window === 'undefined') {
-    return USUARIOS_MOCK;
-  }
-  try {
-    const savedV2 = localStorage.getItem(USERS_STORAGE_KEY_V2);
-    if (savedV2) {
-      const parsed = JSON.parse(savedV2);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return sanitizeUsersList(parsed);
-      }
-    }
-    const savedLegacy = localStorage.getItem(USERS_STORAGE_KEY_LEGACY);
-    if (savedLegacy) {
-      const parsed = JSON.parse(savedLegacy);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const sanitized = sanitizeUsersList(parsed);
-        try {
-          localStorage.setItem(USERS_STORAGE_KEY_V2, JSON.stringify(sanitized));
-        } catch {}
-        return sanitized;
-      }
-    }
-    try {
-      localStorage.setItem(USERS_STORAGE_KEY_V2, JSON.stringify(USUARIOS_MOCK));
-      localStorage.setItem(USERS_STORAGE_KEY_LEGACY, JSON.stringify(USUARIOS_MOCK));
-    } catch {}
-    return USUARIOS_MOCK;
-  } catch (e) {
-    console.error('Error leyendo usuarios de localStorage:', e);
-    return USUARIOS_MOCK;
-  }
+  return getUserRegistry();
 }
 
 function saveStoredUsers(list: User[]): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    const sanitized = sanitizeUsersList(list);
-    const serialized = JSON.stringify(sanitized);
-    localStorage.setItem(USERS_STORAGE_KEY_V2, serialized);
-    localStorage.setItem(USERS_STORAGE_KEY_LEGACY, serialized);
-    return true;
-  } catch (e) {
-    console.error('Error guardando usuarios en localStorage:', e);
-    return false;
-  }
+  const records = sanitizeRegistryRecords(list);
+  return saveUserRegistry(records);
 }
 
 export default function HomePage() {
@@ -275,7 +193,9 @@ export default function HomePage() {
   const [showNuevaObraModal, setShowNuevaObraModal] = useState(false);
   const [showAdminRolesModal, setShowAdminRolesModal] = useState(false);
 
-  const permisos = permisosRoles[currentRole];
+  const permisos = currentUser?.permisos
+    ? { ...permisosRoles[currentRole], ...currentUser.permisos }
+    : permisosRoles[currentRole];
 
   // Sincronizar el rol cuando cambia el usuario de sesión (salida forzosa de modo admin si no hay sesión)
   useEffect(() => {
@@ -320,15 +240,30 @@ export default function HomePage() {
     setMobileSheetDismissed(false);
   };
 
-  // Handlers para administración de usuarios y permisos con persistencia garantizada
+  // Handlers para administración de la Tabla de Registros y Permisos (SOLO ADMINISTRADOR)
   const handleUpdateUserRole = (userId: string, newRole: UserRole) => {
-    const currentUsers = getStoredUsers();
-    const updated = currentUsers.map((u) => (u.id === userId ? { ...u, role: newRole } : u));
-    saveStoredUsers(updated);
-    setUsers(updated);
+    const currentRecords = getUserRegistry();
+    const targetIndex = currentRecords.findIndex((u) => u.id === userId);
+    if (targetIndex === -1) return;
+
+    // Proteger al único admin si se intenta cambiar a otro rol
+    const activeAdmins = currentRecords.filter((r) => r.role === 'ADMIN' && r.activo && !r.bloqueado);
+    if (currentRecords[targetIndex].role === 'ADMIN' && activeAdmins.length <= 1 && newRole !== 'ADMIN') {
+      alert('Debe existir al menos un usuario con rol de Administrador activo.');
+      return;
+    }
+
+    currentRecords[targetIndex].role = newRole;
+    currentRecords[targetIndex].permisos = { ...PERMISOS_POR_ROL[newRole] };
+    saveUserRegistry(currentRecords);
+    setUsers(getUserRegistry());
 
     if (currentUser && currentUser.id === userId) {
-      const updatedUser = { ...currentUser, role: newRole };
+      const updatedUser: User = { 
+        ...currentUser, 
+        role: newRole,
+        permisos: { ...PERMISOS_POR_ROL[newRole] }
+      };
       setCurrentUser(updatedUser);
       setCurrentRole(newRole);
       if (typeof window !== 'undefined') {
@@ -341,33 +276,47 @@ export default function HomePage() {
 
   const handleAddUser = (newUser: Omit<User, 'id'>) => {
     const cleanEmail = newUser.email.trim().toLowerCase();
-    const currentUsers = getStoredUsers();
+    const currentRecords = getUserRegistry();
     
     // Validar si ya existe un usuario con este correo electrónico
-    if (currentUsers.some((u) => u.email.toLowerCase() === cleanEmail)) {
-      alert(`El correo "${cleanEmail}" ya pertenece a un usuario existente. Por favor, utiliza un correo diferente.`);
+    if (currentRecords.some((u) => u.email.toLowerCase() === cleanEmail)) {
+      alert(`El correo "${cleanEmail}" ya pertenece a un usuario existente en la tabla de registros. Utiliza un correo diferente.`);
       return;
     }
 
-    const created: User = {
-      ...newUser,
-      email: cleanEmail,
+    const role: UserRole = newUser.role || 'TECNICO_CAMPO';
+    const assignedPermisos: PermisosRol = newUser.permisos 
+      ? { ...newUser.permisos } 
+      : { ...(PERMISOS_POR_ROL[role] || PERMISOS_POR_ROL.CONSULTOR_EXTERNO) };
+
+    const createdRecord: UserRegistryRecord = {
       id: `usr-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: newUser.name.trim(),
+      email: cleanEmail,
       password: newUser.password?.trim() || '1234',
-      requiresPassword: true,
+      role,
+      avatar: newUser.avatar || (newUser.name.trim().length >= 2 ? newUser.name.trim().slice(0, 2).toUpperCase() : 'US'),
+      activo: newUser.activo !== false,
+      bloqueado: Boolean(newUser.bloqueado),
+      intentosFallidos: 0,
+      permisos: assignedPermisos,
+      fechaRegistro: new Date().toISOString(),
+      ultimoAcceso: null,
+      registradoPor: currentUser?.name || 'Administrador',
+      notasSeguridad: '',
     };
 
-    const updated = sanitizeUsersList([...currentUsers, created]);
-    saveStoredUsers(updated);
-    setUsers(updated);
+    const updated = [...currentRecords, createdRecord];
+    saveUserRegistry(updated);
+    setUsers(getUserRegistry());
   };
 
   const handleEditUser = (updatedUser: User) => {
     const cleanEmail = updatedUser.email.trim().toLowerCase();
-    const currentUsers = getStoredUsers();
+    const currentRecords = getUserRegistry();
     
     // Validar si el correo ya existe en otro usuario
-    const emailConflict = currentUsers.some(
+    const emailConflict = currentRecords.some(
       (u) => u.id !== updatedUser.id && u.email.toLowerCase() === cleanEmail
     );
     if (emailConflict) {
@@ -375,46 +324,105 @@ export default function HomePage() {
       return;
     }
 
-    const cleanUser: User = {
-      ...updatedUser,
+    const targetIndex = currentRecords.findIndex((u) => u.id === updatedUser.id);
+    if (targetIndex === -1) return;
+
+    const prev = currentRecords[targetIndex];
+    const newRole = updatedUser.role || prev.role;
+    const newPermisos: PermisosRol = updatedUser.permisos 
+      ? { ...updatedUser.permisos }
+      : prev.permisos;
+
+    const updatedRecord: UserRegistryRecord = {
+      ...prev,
       name: updatedUser.name.trim(),
       email: cleanEmail,
-      password: updatedUser.password?.trim() || '1234',
-      avatar: updatedUser.name.trim().length >= 2 ? updatedUser.name.trim().slice(0, 2).toUpperCase() : 'US',
-      requiresPassword: true,
+      password: updatedUser.password?.trim() || prev.password,
+      role: newRole,
+      avatar: updatedUser.name.trim().length >= 2 ? updatedUser.name.trim().slice(0, 2).toUpperCase() : prev.avatar,
+      activo: updatedUser.activo !== undefined ? updatedUser.activo : prev.activo,
+      bloqueado: updatedUser.bloqueado !== undefined ? updatedUser.bloqueado : prev.bloqueado,
+      permisos: newPermisos,
     };
 
-    const updated = sanitizeUsersList(currentUsers.map((u) => (u.id === cleanUser.id ? cleanUser : u)));
-    saveStoredUsers(updated);
-    setUsers(updated);
+    currentRecords[targetIndex] = updatedRecord;
+    saveUserRegistry(currentRecords);
+    setUsers(getUserRegistry());
 
-    if (currentUser && currentUser.id === cleanUser.id) {
-      setCurrentUser(cleanUser);
-      setCurrentRole(cleanUser.role);
+    if (currentUser && currentUser.id === updatedUser.id) {
+      const updatedSessionUser: User = {
+        ...currentUser,
+        name: updatedRecord.name,
+        email: updatedRecord.email,
+        role: updatedRecord.role,
+        avatar: updatedRecord.avatar,
+        activo: updatedRecord.activo,
+        bloqueado: updatedRecord.bloqueado,
+        permisos: updatedRecord.permisos,
+      };
+      setCurrentUser(updatedSessionUser);
+      setCurrentRole(updatedSessionUser.role);
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem('geobras_user_session', JSON.stringify(cleanUser));
+          localStorage.setItem('geobras_user_session', JSON.stringify(updatedSessionUser));
         } catch {}
       }
     }
   };
 
   const handleDeleteUser = (userId: string) => {
-    const currentUsers = getStoredUsers();
-    const targetUser = currentUsers.find((u) => u.id === userId);
-    const adminCount = currentUsers.filter((u) => u.role === 'ADMIN').length;
+    const currentRecords = getUserRegistry();
+    const targetUser = currentRecords.find((u) => u.id === userId);
+    const activeAdmins = currentRecords.filter((u) => u.role === 'ADMIN' && u.activo && !u.bloqueado);
 
-    if (targetUser?.role === 'ADMIN' && adminCount <= 1) {
-      alert('No es posible eliminar al único Administrador del sistema. Debe existir al menos un usuario Administrador activo.');
+    if (targetUser?.role === 'ADMIN' && activeAdmins.length <= 1) {
+      alert('No es posible eliminar al único Administrador activo del sistema. Debe existir al menos un Administrador.');
       return;
     }
 
-    const filtered = currentUsers.filter((u) => u.id !== userId);
-    const updated = sanitizeUsersList(filtered);
-    saveStoredUsers(updated);
-    setUsers(updated);
+    const filtered = currentRecords.filter((u) => u.id !== userId);
+    saveUserRegistry(filtered);
+    setUsers(getUserRegistry());
 
     if (currentUser?.id === userId) {
+      handleLogout();
+    }
+  };
+
+  const handleToggleUserStatus = (userId: string, statusType: 'activo' | 'bloqueado') => {
+    const currentRecords = getUserRegistry();
+    const targetIndex = currentRecords.findIndex((r) => r.id === userId);
+    if (targetIndex === -1) return;
+
+    const target = currentRecords[targetIndex];
+    const activeAdmins = currentRecords.filter((r) => r.role === 'ADMIN' && r.activo && !r.bloqueado);
+
+    if (target.role === 'ADMIN' && activeAdmins.length <= 1) {
+      if (statusType === 'activo' && target.activo) {
+        alert('No es posible desactivar al único Administrador activo del sistema.');
+        return;
+      }
+      if (statusType === 'bloqueado' && !target.bloqueado) {
+        alert('No es posible bloquear al único Administrador activo del sistema.');
+        return;
+      }
+    }
+
+    if (statusType === 'activo') {
+      target.activo = !target.activo;
+    } else if (statusType === 'bloqueado') {
+      target.bloqueado = !target.bloqueado;
+      if (!target.bloqueado) {
+        target.intentosFallidos = 0;
+      }
+    }
+
+    currentRecords[targetIndex] = target;
+    saveUserRegistry(currentRecords);
+    setUsers(getUserRegistry());
+
+    if (currentUser?.id === userId && (!target.activo || target.bloqueado)) {
+      alert('Su cuenta ha sido desactivada o bloqueada por la administración. La sesión finalizará.');
       handleLogout();
     }
   };
@@ -954,6 +962,7 @@ export default function HomePage() {
         localStorage.removeItem('geobras_taxonomias');
         localStorage.removeItem('geobras_users_list');
         localStorage.removeItem('geobras_users_list_v2');
+        localStorage.removeItem(REGISTRO_USUARIOS_STORAGE_KEY);
       } catch {}
     }
     setCurrentUser(null);
@@ -962,7 +971,7 @@ export default function HomePage() {
     setDocumentos([]);
     setVisitas([]);
     setObras(OBRAS_MOCK);
-    setUsers(USUARIOS_MOCK);
+    setUsers(getUserRegistry());
     setShowLoginModal(true);
   };
 
@@ -2139,6 +2148,7 @@ export default function HomePage() {
           onAddUser={handleAddUser}
           onEditUser={handleEditUser}
           onDeleteUser={handleDeleteUser}
+          onToggleUserStatus={handleToggleUserStatus}
           permisosRoles={permisosRoles}
           onTogglePermiso={handleTogglePermiso}
         />

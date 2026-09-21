@@ -8,6 +8,28 @@ export interface User {
   avatar: string;
   password?: string;
   requiresPassword?: boolean;
+  activo?: boolean;
+  bloqueado?: boolean;
+  permisos?: PermisosRol;
+  ultimoAcceso?: string | null;
+  fechaRegistro?: string;
+}
+
+export interface UserRegistryRecord {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  avatar: string;
+  activo: boolean;
+  bloqueado: boolean;
+  intentosFallidos: number;
+  permisos: PermisosRol;
+  fechaRegistro: string;
+  ultimoAcceso: string | null;
+  registradoPor: string;
+  notasSeguridad?: string;
 }
 
 export type EstadoObra = 'PLANIFICACION' | 'EN_EJECUCION' | 'PARALIZADA' | 'FINALIZADA';

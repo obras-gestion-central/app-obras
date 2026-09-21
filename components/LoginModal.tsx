@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User } from '@/types';
+import { verifyUserLogin } from '@/lib/userRegistry';
 import { Building2, Lock, ArrowRight, AlertCircle, X, RefreshCw, KeyRound, Shield } from 'lucide-react';
 
 interface LoginModalProps {
@@ -56,33 +57,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    // Búsqueda estricta por correo electrónico (consultando props y almacenamiento local sincronizado)
-    let candidateUsers = users;
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('geobras_users_list_v2') || localStorage.getItem('geobras_users_list');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            candidateUsers = parsed;
-          }
-        }
-      } catch {}
-    }
-
-    const targetUser = candidateUsers.find((u) => u.email.toLowerCase() === trimmedInput);
-
-    if (!targetUser) {
-      setErrorMsg('Credenciales de acceso incorrectas.');
+    if (!passwordInput) {
+      setErrorMsg('Por favor, introduce tu contraseña.');
       return;
     }
 
-    if (!passwordInput || targetUser.password !== passwordInput) {
-      setErrorMsg('Credenciales de acceso incorrectas.');
+    // Verificación estricta contra la Tabla Oficial de Registros de Usuarios
+    const result = verifyUserLogin(trimmedInput, passwordInput);
+
+    if (!result.success || !result.user) {
+      setErrorMsg(result.error || 'Credenciales de acceso incorrectas.');
       return;
     }
 
-    onLogin(targetUser);
+    onLogin(result.user);
   };
 
   return (
