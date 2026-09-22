@@ -27,20 +27,20 @@ class NumberedCanvas(canvas.Canvas):
 
     def draw_page_number(self, page_count):
         self.saveState()
-        self.setFont("Helvetica", 8)
+        self.setFont("Helvetica", 7.5)
         self.setFillColor(colors.HexColor("#64748b"))
         
         # Pie de página
-        footer_text = "GEOBRAS 2.0 • Sistema Integral de Gestión de Obras | Documento Técnico y de Seguridad"
+        footer_text = "GEOBRAS 2.0 • Sistema Integral de Gestión de Obras | Directorio OneDrive: C:\\Users\\gemay\\OneDrive\\Documents\\APP_OBRAS\\"
         page_text = f"Página {self._pageNumber} de {page_count}"
         
-        self.drawString(14 * mm, 9 * mm, footer_text)
-        self.drawRightString(A4[0] - 14 * mm, 9 * mm, page_text)
+        self.drawString(14 * mm, 8.5 * mm, footer_text)
+        self.drawRightString(A4[0] - 14 * mm, 8.5 * mm, page_text)
         
         # Línea de pie
         self.setStrokeColor(colors.HexColor("#e2e8f0"))
         self.setLineWidth(0.5)
-        self.line(14 * mm, 12 * mm, A4[0] - 14 * mm, 12 * mm)
+        self.line(14 * mm, 11.5 * mm, A4[0] - 14 * mm, 11.5 * mm)
         self.restoreState()
 
 def create_pdf(filename):
@@ -49,8 +49,8 @@ def create_pdf(filename):
         pagesize=A4,
         leftMargin=14 * mm,
         rightMargin=14 * mm,
-        topMargin=13 * mm,
-        bottomMargin=16 * mm
+        topMargin=12 * mm,
+        bottomMargin=15 * mm
     )
 
     styles = getSampleStyleSheet()
@@ -69,24 +69,24 @@ def create_pdf(filename):
     title_style = ParagraphStyle(
         'DocTitle',
         fontName='Helvetica-Bold',
-        fontSize=17,
-        leading=21,
+        fontSize=16.5,
+        leading=20,
         textColor=colors.HexColor('#0f172a')
     )
 
     subtitle_style = ParagraphStyle(
         'DocSubtitle',
         fontName='Helvetica',
-        fontSize=9,
-        leading=12,
+        fontSize=8.5,
+        leading=11.5,
         textColor=colors.HexColor('#475569')
     )
 
     meta_style = ParagraphStyle(
         'MetaStyle',
         fontName='Helvetica',
-        fontSize=8,
-        leading=10.5,
+        fontSize=7.5,
+        leading=10,
         textColor=colors.HexColor('#64748b'),
         alignment=2
     )
@@ -94,18 +94,18 @@ def create_pdf(filename):
     h2_style = ParagraphStyle(
         'SectionH2',
         fontName='Helvetica-Bold',
-        fontSize=10.5,
-        leading=14,
+        fontSize=10,
+        leading=13.5,
         textColor=colors.HexColor('#0369a1'),
-        spaceBefore=7,
-        spaceAfter=4
+        spaceBefore=6,
+        spaceAfter=3.5
     )
 
     h3_style = ParagraphStyle(
         'SectionH3',
         fontName='Helvetica-Bold',
-        fontSize=9,
-        leading=12,
+        fontSize=8.5,
+        leading=11.5,
         textColor=colors.HexColor('#0f172a')
     )
 
@@ -113,7 +113,7 @@ def create_pdf(filename):
         'BodyDark',
         fontName='Helvetica',
         fontSize=8,
-        leading=11,
+        leading=10.5,
         textColor=colors.HexColor('#334155')
     )
 
@@ -121,7 +121,7 @@ def create_pdf(filename):
         'BodyBold',
         fontName='Helvetica-Bold',
         fontSize=8,
-        leading=11,
+        leading=10.5,
         textColor=colors.HexColor('#0f172a')
     )
 
@@ -129,15 +129,15 @@ def create_pdf(filename):
         'CodeStyle',
         fontName='Courier-Bold',
         fontSize=8,
-        leading=10.5,
+        leading=10,
         textColor=colors.HexColor('#0f172a')
     )
 
     code_mono_sm = ParagraphStyle(
         'CodeMonoSm',
         fontName='Courier',
-        fontSize=7.5,
-        leading=9.5,
+        fontSize=7,
+        leading=9,
         textColor=colors.HexColor('#0f172a')
     )
 
@@ -151,13 +151,13 @@ def create_pdf(filename):
     header_data = [
         [
             Paragraph("<b>GEOBRAS 2.0 • PROTOCOLO DE VALIDACIÓN Y ACCESO</b>", badge_style),
-            Paragraph("<b>Versión:</b> 2.1 (Online)<br/><b>Fecha:</b> Septiembre 2026", meta_style)
+            Paragraph("<b>Versión:</b> 2.1 (Online) | <b>Fecha:</b> Septiembre 2026<br/><b>OneDrive:</b> <font name='Courier'>...\\APP_OBRAS</font>", meta_style)
         ]
     ]
-    t_header = Table(header_data, colWidths=[120 * mm, 62 * mm])
+    t_header = Table(header_data, colWidths=[118 * mm, 64 * mm])
     t_header.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 1),
         ('TOPPADDING', (0,0), (-1,-1), 0),
         ('LEFTPADDING', (0,0), (-1,-1), 0),
         ('RIGHTPADDING', (0,0), (-1,-1), 0),
@@ -166,15 +166,16 @@ def create_pdf(filename):
 
     story.append(Paragraph("Guía de Acceso y Protocolo de Pruebas", title_style))
     story.append(Paragraph("Manual de validación técnica, credenciales de acceso y protocolo de pruebas", subtitle_style))
-    story.append(Spacer(1, 3 * mm))
+    story.append(Spacer(1, 2.5 * mm))
 
     # 2. Caja destacada de enlace
     url_box = [
         [
             Paragraph(
                 "<font color='#0369a1'><b>ENLACE DIRECTO DE ACCESO (ONLINE):</b></font><br/>"
-                "<font size='10.5' color='#0284c7'><b><u>https://obras-gestion-central.github.io/app-obras/</u></b></font><br/>"
-                "<font size='7.5' color='#475569'>Aplicación web progresiva (PWA): accesible desde cualquier PC, tablet o móvil (Chrome, Edge, Safari, Firefox).</font>",
+                "<font size='10' color='#0284c7'><b><u>https://obras-gestion-central.github.io/app-obras/</u></b></font><br/>"
+                "<font size='7.5' color='#475569'>Aplicación web progresiva (PWA): accesible desde cualquier PC, tablet o móvil (Chrome, Edge, Safari, Firefox).<br/>"
+                "<b>Directorio de Sincronización Local (OneDrive):</b> <font name='Courier-Bold'>C:\\Users\\gemay\\OneDrive\\Documents\\APP_OBRAS\\</font></font>",
                 body_style
             )
         ]
@@ -184,13 +185,13 @@ def create_pdf(filename):
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f0f9ff')),
         ('BOX', (0,0), (-1,-1), 1.2, colors.HexColor('#38bdf8')),
         ('ROUNDEDCORNERS', [5, 5, 5, 5]),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 4.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4.5),
         ('LEFTPADDING', (0,0), (-1,-1), 8),
         ('RIGHTPADDING', (0,0), (-1,-1), 8),
     ]))
     story.append(t_url)
-    story.append(Spacer(1, 2.5 * mm))
+    story.append(Spacer(1, 2 * mm))
 
     # Aviso de seguridad privada
     sec_notice = [
@@ -206,8 +207,8 @@ def create_pdf(filename):
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
         ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
         ('LINELEFT', (0,0), (0,0), 3.5, colors.HexColor('#0284c7')),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('TOPPADDING', (0,0), (-1,-1), 3.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
         ('LEFTPADDING', (0,0), (-1,-1), 7),
         ('RIGHTPADDING', (0,0), (-1,-1), 7),
     ]))
@@ -255,8 +256,8 @@ def create_pdf(filename):
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#e2e8f0')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 3.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
         ('LEFTPADDING', (0,0), (-1,-1), 5),
         ('RIGHTPADDING', (0,0), (-1,-1), 5),
         ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#faf5ff')),
@@ -321,10 +322,10 @@ def create_pdf(filename):
         ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#ffffff')),
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-        ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 3.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
+        ('LEFTPADDING', (0,0), (-1,-1), 5),
+        ('RIGHTPADDING', (0,0), (-1,-1), 5),
     ]))
     story.append(t_tests)
 
@@ -352,7 +353,7 @@ def create_pdf(filename):
 
     story.append(Paragraph("3. Custodia de Datos en OneDrive, Google Drive o Synology", h2_style))
     story.append(Paragraph(
-        "Cualquier responsable o administrador puede extraer de forma periódica copias de seguridad completas de toda la empresa y archivarlas en las carpetas compartidas de la compañía (OneDrive, Drive, Synology o disco local):",
+        "Cualquier responsable o administrador puede extraer de forma periódica copias de seguridad completas de toda la empresa y archivarlas en la carpeta local de sincronización con OneDrive (<b>C:\\Users\\gemay\\OneDrive\\Documents\\APP_OBRAS\\</b>), Google Drive o NAS Synology:",
         body_style
     ))
     story.append(Spacer(1, 2 * mm))
@@ -370,7 +371,8 @@ def create_pdf(filename):
                 "&nbsp;&nbsp;<b>• Carpetas por cada Obra (ej. OBR-1_Hospital_Central):</b><br/>"
                 "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <i>00_Ficha_Resumen_Obra.txt:</i> Datos técnicos, presupuesto y responsable.<br/>"
                 "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <i>Carpeta Documentos:</i> PDFs originales (planos), Word y hojas de cálculo.<br/>"
-                "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <i>Carpeta Fotografias:</i> Fotos reales en formato JPG con archivo de coordenadas GPS.",
+                "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <i>Carpeta Fotografias:</i> Fotos reales en formato JPG con archivo de coordenadas GPS.<br/><br/>"
+                "<b>Ubicación local recomendada para guardar el ZIP:</b> <font name='Courier-Bold'>C:\\Users\\gemay\\OneDrive\\Documents\\APP_OBRAS\\BACKUPS\\</font>",
                 body_style
             )
         ]
@@ -380,8 +382,8 @@ def create_pdf(filename):
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#ecfdf5')),
         ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#f0fdf4')),
         ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#a7f3d0')),
-        ('TOPPADDING', (0,0), (-1,-1), 4.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4.5),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
         ('LEFTPADDING', (0,0), (-1,-1), 7),
         ('RIGHTPADDING', (0,0), (-1,-1), 7),
     ]))
@@ -396,7 +398,7 @@ def create_pdf(filename):
             Paragraph(
                 "El botón <b>'Exportar Copia de Seguridad (.json)'</b> descarga un archivo único con el estado íntegro del sistema, idóneo para restauraciones automáticas inmediatas desde la propia aplicación.<br/><br/>"
                 "<b>¿Y si en el futuro ocurre un problema grave y no puedes acceder a la web?</b><br/>"
-                "Cualquier usuario sin conocimientos informáticos puede utilizar la herramienta <b>recuperador.html</b> (disponible online en <u>https://obras-gestion-central.github.io/app-obras/recuperador.html</u> y descargable para usar sin internet).<br/>"
+                "Cualquier usuario sin conocimientos informáticos puede utilizar la herramienta <b>recuperador.html</b> (disponible online en <u>https://obras-gestion-central.github.io/app-obras/recuperador.html</u> y guardada en local en <font name='Courier'>C:\\Users\\gemay\\OneDrive\\Documents\\APP_OBRAS\\public\\recuperador.html</font>).<br/>"
                 "Basta con hacer doble clic en el archivo desde cualquier ordenador, arrastrar el fichero <code>.json</code> y pulsar 'Descargar Todo en ZIP' para recuperar todos los documentos y fotos al instante.",
                 body_style
             )
@@ -407,8 +409,8 @@ def create_pdf(filename):
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#faf5ff')),
         ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#faf5ff')),
         ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#d8b4fe')),
-        ('TOPPADDING', (0,0), (-1,-1), 4.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4.5),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
         ('LEFTPADDING', (0,0), (-1,-1), 7),
         ('RIGHTPADDING', (0,0), (-1,-1), 7),
     ]))
@@ -437,8 +439,8 @@ def create_pdf(filename):
         ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
         ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#f1f5f9')),
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('TOPPADDING', (0,0), (-1,-1), 3.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
         ('LEFTPADDING', (0,0), (-1,-1), 7),
         ('RIGHTPADDING', (0,0), (-1,-1), 7),
     ]))
@@ -468,7 +470,7 @@ def create_pdf(filename):
 
     story.append(Paragraph("5. Infraestructura de Almacenamiento en la Nube y Local", h2_style))
     story.append(Paragraph(
-        "Ficha técnica descriptiva de los directorios, bases de datos y canales donde reside y se sincroniza la información de la aplicación:",
+        "Ficha técnica descriptiva de los directorios locales, bases de datos y canales en la nube donde reside y se sincroniza la información de la aplicación:",
         body_style
     ))
     story.append(Spacer(1, 1.5 * mm))
@@ -480,13 +482,18 @@ def create_pdf(filename):
             Paragraph("<b>DESCRIPCIÓN Y CLAVES INTERNAS</b>", body_bold),
         ],
         [
+            Paragraph("<b>Directorio Local y Sincronización OneDrive</b>", body_style),
+            Paragraph("<b>Ruta en este equipo (OneDrive):</b><br/><font size='6.5' name='Courier-Bold'>C:\\Users\\gemay\\OneDrive\\Documents\\APP_OBRAS\\</font>", body_style),
+            Paragraph("Directorio raíz donde reside el proyecto, el código fuente y el documento PDF de esta guía (<font name='Courier'>Guia_Pruebas_GEOBRAS.pdf</font>). Microsoft OneDrive sincroniza automáticamente todo su contenido con la nube corporativa en tiempo real.", body_style)
+        ],
+        [
             Paragraph("<b>Persistencia Local en Dispositivo</b>", body_style),
             Paragraph("<b>IndexedDB</b> (Base: <font name='Courier'>geobras_db</font>)<br/>Fallback: <font name='Courier'>localStorage</font>", code_mono_sm),
             Paragraph("Almacenamiento seguro en el navegador sin límite de 5MB. Retiene planos PDF, documentos y fotos base64 de alta resolución en cada PC o móvil.", body_style)
         ],
         [
             Paragraph("<b>Canal Central en la Nube (REST)</b>", body_style),
-            Paragraph("<b>Endpoint:</b><br/><font size='7' color='#0284c7'>https://kvdb.io/4y9y213yLh4mXbQz7T1u8p/</font><br/><b>Canal:</b> <font name='Courier-Bold'>obras_central_database</font>", body_style),
+            Paragraph("<b>Endpoint:</b><br/><font size='6.5' color='#0284c7'>https://kvdb.io/4y9y213yLh4mXbQz7T1u8p/</font><br/><b>Canal:</b> <font name='Courier-Bold'>obras_central_database</font>", body_style),
             Paragraph("Canal de sincronización cifrado por HTTPS. Permite que múltiples dispositivos (móvil, tablet, oficina) compartan obras, visitas y usuarios en tiempo real.", body_style)
         ],
         [
@@ -495,28 +502,29 @@ def create_pdf(filename):
             Paragraph("• <font name='Courier'>geobras_fotos_list</font> (fotos GPS)<br/>• <font name='Courier'>geobras_registro_usuarios_db</font> (tabla maestra)<br/>• <font name='Courier'>geobras_taxonomias</font> (categorías)", code_mono_sm)
         ],
         [
-            Paragraph("<b>Custodia Externa (Empresa)</b>", body_style),
-            Paragraph("Directorio local / OneDrive / Synology:<br/><b>/GEOBRAS_BACKUPS/</b>", code_mono_sm),
-            Paragraph("Ubicación recomendada para archivar semanalmente los ficheros <font name='Courier'>.zip</font> y <font name='Courier'>.json</font> descargados desde la aplicación.", body_style)
+            Paragraph("<b>Carpeta de Custodia para Respaldos</b>", body_style),
+            Paragraph("Subcarpeta recomendada en OneDrive:<br/><font size='6.5' name='Courier-Bold'>...\\APP_OBRAS\\BACKUPS\\</font>", body_style),
+            Paragraph("Ubicación recomendada para archivar semanalmente los ficheros <font name='Courier'>.zip</font> y <font name='Courier'>.json</font> descargados desde la aplicación para su inmediata sincronización en OneDrive.", body_style)
         ]
     ]
 
-    t_storage = Table(storage_table_data, colWidths=[42 * mm, 64 * mm, 76 * mm])
+    t_storage = Table(storage_table_data, colWidths=[42 * mm, 66 * mm, 74 * mm])
     t_storage.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#e2e8f0')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 3.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
-        ('LEFTPADDING', (0,0), (-1,-1), 4.5),
-        ('RIGHTPADDING', (0,0), (-1,-1), 4.5),
-        ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#ffffff')),
-        ('BACKGROUND', (0,2), (-1,2), colors.HexColor('#f8fafc')),
-        ('BACKGROUND', (0,3), (-1,3), colors.HexColor('#ffffff')),
-        ('BACKGROUND', (0,4), (-1,4), colors.HexColor('#f8fafc')),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('LEFTPADDING', (0,0), (-1,-1), 4),
+        ('RIGHTPADDING', (0,0), (-1,-1), 4),
+        ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#eff6ff')),
+        ('BACKGROUND', (0,2), (-1,2), colors.HexColor('#ffffff')),
+        ('BACKGROUND', (0,3), (-1,3), colors.HexColor('#f8fafc')),
+        ('BACKGROUND', (0,4), (-1,4), colors.HexColor('#ffffff')),
+        ('BACKGROUND', (0,5), (-1,5), colors.HexColor('#f8fafc')),
     ]))
     story.append(t_storage)
-    story.append(Spacer(1, 2.5 * mm))
+    story.append(Spacer(1, 2 * mm))
 
     # 6. Datos Relevantes de GitHub
     story.append(Paragraph("6. Datos del Repositorio en GitHub y Despliegue Automatizado", h2_style))
@@ -530,19 +538,19 @@ def create_pdf(filename):
         ],
         [
             Paragraph("<b>URL Repositorio (Código):</b>", body_bold),
-            Paragraph("<font size='7.5' color='#0284c7'><u>https://github.com/obras-gestion-central/app-obras</u></font>", body_style),
+            Paragraph("<font size='7' color='#0284c7'><u>https://github.com/obras-gestion-central/app-obras</u></font>", body_style),
             Paragraph("<b>Rama de Producción:</b>", body_bold),
             Paragraph("<font name='Courier-Bold'>main</font>", body_style)
         ],
         [
             Paragraph("<b>URL de Publicación Web:</b>", body_bold),
-            Paragraph("<font size='7.5' color='#0284c7'><u>https://obras-gestion-central.github.io/app-obras/</u></font>", body_style),
+            Paragraph("<font size='7' color='#0284c7'><u>https://obras-gestion-central.github.io/app-obras/</u></font>", body_style),
             Paragraph("<b>Herramienta Offline:</b>", body_bold),
-            Paragraph("<font size='7.5' color='#0284c7'><u>.../recuperador.html</u></font>", body_style)
+            Paragraph("<font size='7' color='#0284c7'><u>.../recuperador.html</u></font>", body_style)
         ],
         [
             Paragraph("<b>Flujo CI/CD Automatizado:</b>", body_bold),
-            Paragraph("<font name='Courier' size='7.5'>.github/workflows/deploy.yml</font> (compilación Next.js a <font name='Courier'>./out</font> y despliegue instantáneo)", body_style),
+            Paragraph("<font name='Courier' size='7'>.github/workflows/deploy.yml</font> (compilación Next.js a <font name='Courier'>./out</font> y despliegue instantáneo)", body_style),
             Paragraph("<b>Hosting Web:</b>", body_bold),
             Paragraph("GitHub Pages (Tráfico ilimitado y SSL gratuito)", body_style)
         ]
@@ -553,13 +561,13 @@ def create_pdf(filename):
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cbd5e1')),
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('TOPPADDING', (0,0), (-1,-1), 2.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
         ('LEFTPADDING', (0,0), (-1,-1), 4),
         ('RIGHTPADDING', (0,0), (-1,-1), 4),
     ]))
     story.append(t_gh)
-    story.append(Spacer(1, 2.5 * mm))
+    story.append(Spacer(1, 2 * mm))
 
     # 7. Cuentas de Soporte y Continuidad
     story.append(Paragraph("7. Cuentas de Correo, Soporte Técnico y Continuidad", h2_style))
@@ -576,9 +584,9 @@ def create_pdf(filename):
         [
             Paragraph("<b>Protocolo de Continuidad (DRP):</b>", body_bold),
             Paragraph(
-                "1. En caso de reemplazo de equipo: basta con acceder a la URL oficial e identificarse.<br/>"
-                "2. Si se requiere restauración íntegra: en 'Usuarios y Roles' &rarr; 'Base de Datos y Nube', pulsar 'Restaurar Copia desde Archivo' y cargar el último <code>.json</code> custodiado.<br/>"
-                "3. En caso de caída de internet: abrir <code>recuperador.html</code> en cualquier PC para extraer fotos JPG y documentos.",
+                "1. En caso de reemplazo de equipo: acceder a la URL oficial e identificarse.<br/>"
+                "2. Si se requiere restauración íntegra: en 'Usuarios y Roles' &rarr; 'Base de Datos y Nube', pulsar 'Restaurar Copia desde Archivo' y cargar el último <code>.json</code> custodiado en <font name='Courier'>C:\\Users\\gemay\\OneDrive\\Documents\\APP_OBRAS\\BACKUPS\\</font>.<br/>"
+                "3. En caso de caída de red: abrir <code>recuperador.html</code> en cualquier PC para extraer fotos JPG y documentos.",
                 body_style
             )
         ]
@@ -590,8 +598,8 @@ def create_pdf(filename):
         ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#ffffff')),
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('TOPPADDING', (0,0), (-1,-1), 3.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
         ('LEFTPADDING', (0,0), (-1,-1), 5),
         ('RIGHTPADDING', (0,0), (-1,-1), 5),
     ]))
