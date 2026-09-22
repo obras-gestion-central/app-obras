@@ -61,7 +61,8 @@ import {
   LogOut, 
   Shield, 
   User as UserIcon, 
-  Tag 
+  Tag,
+  Edit2 
 } from 'lucide-react';
 
 // Persistencia estricta conectada a la Tabla Maestra de Registros de Usuarios
@@ -327,6 +328,7 @@ export default function HomePage() {
   const [showDossierModal, setShowDossierModal] = useState(false);
   const [showTrashModal, setShowTrashModal] = useState(false);
   const [showNuevaObraModal, setShowNuevaObraModal] = useState(false);
+  const [editingObra, setEditingObra] = useState<Obra | null>(null);
   const [showAdminRolesModal, setShowAdminRolesModal] = useState(false);
 
   const permisos = currentUser?.permisos
@@ -871,53 +873,99 @@ export default function HomePage() {
     }
   };
 
-  // Guardar nueva Obra con persistencia
-  const handleSaveObra = (nuevaObraData: Partial<Obra>) => {
-    const id = `obr-${Date.now()}`;
+  // Abrir modal para crear nueva obra
+  const handleOpenNewObra = () => {
+    setEditingObra(null);
+    setShowNuevaObraModal(true);
+  };
+
+  // Abrir modal para editar obra existente
+  const handleOpenEditObra = (obra: Obra) => {
+    setEditingObra(obra);
+    setShowNuevaObraModal(true);
+  };
+
+  // Guardar Obra (Creación o Edición) con persistencia
+  const handleSaveObra = (obraData: Partial<Obra>) => {
     const authorName = currentUser?.name || 'Admin';
-    const newOb: Obra = {
-      id,
-      codigo: nuevaObraData.codigo || `OBR-2026-${Math.floor(Math.random() * 900) + 100}`,
-      titulo: nuevaObraData.titulo || 'Nueva Obra',
-      descripcion: nuevaObraData.descripcion || '',
-      direccion: nuevaObraData.direccion || '',
-      municipio: nuevaObraData.municipio || 'Madrid',
-      provincia: nuevaObraData.provincia || 'Madrid',
-      lat: nuevaObraData.lat || 40.4168,
-      lng: nuevaObraData.lng || -3.7038,
-      estado: nuevaObraData.estado || 'PLANIFICACION',
-      fechaInicio: nuevaObraData.fechaInicio || new Date().toISOString().split('T')[0],
-      fechaFinPrevista: nuevaObraData.fechaFinPrevista || '2026-12-31',
-      responsableId: nuevaObraData.responsableId || currentUser?.id || 'usr-1',
-      responsableNombre: nuevaObraData.responsableNombre || authorName,
-      lineaProductoPrincipal: nuevaObraData.lineaProductoPrincipal || 'Climatización y Aerotermia',
-      tipoObra: nuevaObraData.tipoObra || 'Residencial Multifamiliar',
-      presupuestoAdjudicacion: nuevaObraData.presupuestoAdjudicacion || 0,
-      importeEjecutado: 0,
-      porcentajeAvance: nuevaObraData.porcentajeAvance || 5,
-      createdAt: new Date().toISOString(),
-    };
 
-    setObras((prev) => {
-      const updated = [newOb, ...prev];
-      persistDataSafely('geobras_obras_list', updated);
-      syncToCloud({ obras: updated });
-      return updated;
-    });
-    setSelectedObraId(id);
-    setMobileSheetDismissed(false);
+    if (obraData.id) {
+      // 1. Modificar obra existente
+      setObras((prev) => {
+        const updated = prev.map((o) => {
+          if (o.id === obraData.id) {
+            return {
+              ...o,
+              ...obraData,
+              id: o.id, // Preservar ID único inmutable
+            } as Obra;
+          }
+          return o;
+        });
+        persistDataSafely('geobras_obras_list', updated);
+        syncToCloud({ obras: updated });
+        return updated;
+      });
 
-    const newTl: TimelineEvent = {
-      id: `tl-${Date.now()}`,
-      obraId: id,
-      eventType: 'CREACION',
-      titulo: 'Expediente dado de alta',
-      descripcion: `Obra registrada por ${authorName} con código ${newOb.codigo}. Responsable: ${newOb.responsableNombre}`,
-      autorNombre: authorName,
-      autorRol: currentRole,
-      fecha: new Date().toLocaleString('es-ES'),
-    };
-    setTimeline((prev) => [newTl, ...prev]);
+      const updatedTitle = obraData.titulo || 'Obra';
+      const newTl: TimelineEvent = {
+        id: `tl-${Date.now()}`,
+        obraId: obraData.id,
+        eventType: 'ACTUALIZACION',
+        titulo: 'Detalles del expediente actualizados',
+        descripcion: `Nombre y datos básicos modificados por ${authorName}.`,
+        autorNombre: authorName,
+        autorRol: currentRole,
+        fecha: new Date().toLocaleString('es-ES'),
+      };
+      setTimeline((prev) => [newTl, ...prev]);
+    } else {
+      // 2. Alta de nueva obra
+      const id = `obr-${Date.now()}`;
+      const newOb: Obra = {
+        id,
+        codigo: obraData.codigo || `OBR-2026-${Math.floor(Math.random() * 900) + 100}`,
+        titulo: obraData.titulo || 'Nueva Obra',
+        descripcion: obraData.descripcion || '',
+        direccion: obraData.direccion || '',
+        municipio: obraData.municipio || 'Madrid',
+        provincia: obraData.provincia || 'Madrid',
+        lat: obraData.lat || 40.4168,
+        lng: obraData.lng || -3.7038,
+        estado: obraData.estado || 'PLANIFICACION',
+        fechaInicio: obraData.fechaInicio || new Date().toISOString().split('T')[0],
+        fechaFinPrevista: obraData.fechaFinPrevista || '2026-12-31',
+        responsableId: obraData.responsableId || currentUser?.id || 'usr-1',
+        responsableNombre: obraData.responsableNombre || authorName,
+        lineaProductoPrincipal: obraData.lineaProductoPrincipal || 'Climatización y Aerotermia',
+        tipoObra: obraData.tipoObra || 'Residencial Multifamiliar',
+        presupuestoAdjudicacion: obraData.presupuestoAdjudicacion || 0,
+        importeEjecutado: 0,
+        porcentajeAvance: obraData.porcentajeAvance || 5,
+        createdAt: new Date().toISOString(),
+      };
+
+      setObras((prev) => {
+        const updated = [newOb, ...prev];
+        persistDataSafely('geobras_obras_list', updated);
+        syncToCloud({ obras: updated });
+        return updated;
+      });
+      setSelectedObraId(id);
+      setMobileSheetDismissed(false);
+
+      const newTl: TimelineEvent = {
+        id: `tl-${Date.now()}`,
+        obraId: id,
+        eventType: 'CREACION',
+        titulo: 'Expediente dado de alta',
+        descripcion: `Obra registrada por ${authorName} con código ${newOb.codigo}. Responsable: ${newOb.responsableNombre}`,
+        autorNombre: authorName,
+        autorRol: currentRole,
+        fecha: new Date().toLocaleString('es-ES'),
+      };
+      setTimeline((prev) => [newTl, ...prev]);
+    }
   };
 
   // Guardar Documento con soporte de archivo real y persistencia
@@ -1228,7 +1276,7 @@ export default function HomePage() {
         onRoleChange={handleRoleChange}
         deletedCount={deletedObras.length + deletedDocumentos.length}
         onOpenTrash={() => setShowTrashModal(true)}
-        onOpenNewObra={() => setShowNuevaObraModal(true)}
+        onOpenNewObra={handleOpenNewObra}
         onExportExcel={handleExportExcel}
         onOpenAdminRoles={() => setShowAdminRolesModal(true)}
         onOpenTaxonomias={() => handleOpenTaxonomias('TIPO_VISITA')}
@@ -1425,13 +1473,28 @@ export default function HomePage() {
                           <span className="font-mono text-[10px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-100">
                             {obra.codigo}
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            obra.estado === 'EN_EJECUCION' ? 'bg-emerald-100 text-emerald-800' :
-                            obra.estado === 'PLANIFICACION' ? 'bg-sky-100 text-sky-800' :
-                            obra.estado === 'PARALIZADA' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
-                          }`}>
-                            {obra.estado.replace('_', ' ')}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              obra.estado === 'EN_EJECUCION' ? 'bg-emerald-100 text-emerald-800' :
+                              obra.estado === 'PLANIFICACION' ? 'bg-sky-100 text-sky-800' :
+                              obra.estado === 'PARALIZADA' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {obra.estado.replace('_', ' ')}
+                            </span>
+                            {permisos.editarObras && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEditObra(obra);
+                                }}
+                                className="p-1 text-slate-400 hover:text-sky-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                title="Editar nombre y detalles de la obra"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <h4 className="font-bold text-slate-900 line-clamp-1">{obra.titulo}</h4>
@@ -1475,12 +1538,32 @@ export default function HomePage() {
                   <span>Volver al Mapa</span>
                 </button>
 
-                <div className="text-center truncate px-2">
-                  <span className="font-mono text-[10px] text-sky-300 block">{selectedObra.codigo}</span>
-                  <span className="text-xs font-bold truncate block max-w-[180px]">{selectedObra.titulo}</span>
+                <div className="text-center truncate px-2 flex items-center justify-center gap-1.5 min-w-0">
+                  <div className="truncate">
+                    <span className="font-mono text-[10px] text-sky-300 block">{selectedObra.codigo}</span>
+                    <span className="text-xs font-bold truncate block max-w-[170px]">{selectedObra.titulo}</span>
+                  </div>
+                  {permisos.editarObras && (
+                    <button
+                      onClick={() => handleOpenEditObra(selectedObra)}
+                      className="p-1 text-sky-300 hover:text-white bg-slate-800/80 rounded-lg shrink-0"
+                      title="Editar nombre y detalles básicos"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1">
+                  {permisos.editarObras && (
+                    <button
+                      onClick={() => handleOpenEditObra(selectedObra)}
+                      className="p-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-lg border border-slate-700"
+                      title="Editar obra y detalles"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  )}
                   {permisos.exportarDossier && (
                     <button
                       onClick={() => setShowDossierModal(true)}
@@ -1768,13 +1851,28 @@ export default function HomePage() {
                               {obra.municipio}
                             </span>
                           </div>
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                            obra.estado === 'EN_EJECUCION' ? 'bg-emerald-100 text-emerald-800' :
-                            obra.estado === 'PLANIFICACION' ? 'bg-sky-100 text-sky-800' :
-                            obra.estado === 'PARALIZADA' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
-                          }`}>
-                            {obra.estado.replace('_', ' ')}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                              obra.estado === 'EN_EJECUCION' ? 'bg-emerald-100 text-emerald-800' :
+                              obra.estado === 'PLANIFICACION' ? 'bg-sky-100 text-sky-800' :
+                              obra.estado === 'PARALIZADA' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {obra.estado.replace('_', ' ')}
+                            </span>
+                            {permisos.editarObras && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenEditObra(obra);
+                                }}
+                                className="p-1 text-slate-400 hover:text-sky-600 hover:bg-white rounded transition-colors"
+                                title="Editar nombre y detalles de la obra"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <h4 className="font-bold text-slate-900 line-clamp-1 text-xs">{obra.titulo}</h4>
@@ -1816,13 +1914,36 @@ export default function HomePage() {
                       </span>
                     </div>
 
-                    <h2 className="text-base font-bold text-slate-900">{selectedObra.titulo}</h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-bold text-slate-900">{selectedObra.titulo}</h2>
+                      {permisos.editarObras && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditObra(selectedObra)}
+                          className="p-1 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors"
+                          title="Editar nombre y detalles de la obra"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-600 mt-0.5 max-w-xl line-clamp-2">
                       {selectedObra.descripcion}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {permisos.editarObras && (
+                      <button
+                        onClick={() => handleOpenEditObra(selectedObra)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 text-xs font-bold rounded-xl border border-slate-300 shadow-xs transition-smooth"
+                        title="Editar nombre y detalles básicos de la obra"
+                      >
+                        <Edit2 className="w-3.5 h-3.5 text-slate-600" />
+                        <span>Editar Obra</span>
+                      </button>
+                    )}
+
                     {permisos.exportarDossier && (
                       <button
                         onClick={() => setShowDossierModal(true)}
@@ -2074,16 +2195,31 @@ export default function HomePage() {
               </span>
             </div>
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setMobileSheetDismissed(true);
-              }}
-              className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-              title="Cerrar tarjeta flotante"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              {permisos.editarObras && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEditObra(selectedObra);
+                  }}
+                  className="p-1 text-slate-400 hover:text-sky-600 rounded-lg hover:bg-slate-100 transition-colors"
+                  title="Editar nombre y detalles de la obra"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMobileSheetDismissed(true);
+                }}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+                title="Cerrar tarjeta flotante"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Cuerpo clickeable de la tarjeta: abre directamente el expediente */}
@@ -2195,7 +2331,7 @@ export default function HomePage() {
 
         {permisos.editarObras && (
           <button
-            onClick={() => setShowNuevaObraModal(true)}
+            onClick={handleOpenNewObra}
             className="flex flex-col items-center justify-center flex-1 h-full text-white active:scale-95 transition-transform"
             title="Dar de alta una nueva obra"
           >
@@ -2263,7 +2399,7 @@ export default function HomePage() {
           </button>
           {permisos.editarObras && (
             <button
-              onClick={() => setShowNuevaObraModal(true)}
+              onClick={handleOpenNewObra}
               className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow-xs transition-smooth"
               title="Dar de alta una nueva obra"
             >
@@ -2335,11 +2471,15 @@ export default function HomePage() {
         onRestoreDocumento={handleRestoreDocumento}
       />
 
-      {/* 4. Modal de Nueva Obra (con selector de responsable y GPS asistido) */}
+      {/* 4. Modal de Obra (Alta y Edición de Expediente) */}
       <NuevaObraModal
         isOpen={showNuevaObraModal}
-        onClose={() => setShowNuevaObraModal(false)}
+        onClose={() => {
+          setShowNuevaObraModal(false);
+          setEditingObra(null);
+        }}
         onSaveObra={handleSaveObra}
+        initialObra={editingObra}
         lineasProductoOptions={lineasProductoOptions}
         tiposObraOptions={tiposObraOptions}
         onCreateOption={handleCreateTaxonomy}
