@@ -230,14 +230,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                     syncStatus === 'syncing'
                       ? 'bg-amber-950/40 text-amber-300 border-amber-500/50 animate-pulse'
                       : syncStatus === 'offline'
-                      ? 'bg-slate-800 text-slate-400 border-slate-700'
+                      ? 'bg-rose-950/40 text-rose-300 border-rose-600/50 hover:bg-rose-900/40'
                       : 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/50'
                   }`}
-                  title={`Base de datos central compartida (Multiusuario). ${lastSyncTime ? `Última sincronización: ${lastSyncTime}` : ''}. Haz clic para forzar actualización inmediata.`}
+                  title={
+                    syncStatus === 'offline'
+                      ? 'Aviso: Sin conexión con el canal en la nube. Haz clic para reintentar sincronización.'
+                      : `Base de datos central compartida (Multiusuario). ${lastSyncTime ? `Última sincronización: ${lastSyncTime}` : ''}. Haz clic para forzar actualización inmediata.`
+                  }
                 >
-                  <Cloud className={`w-3.5 h-3.5 ${syncStatus === 'syncing' ? 'animate-bounce text-amber-400' : 'text-emerald-400'}`} />
+                  <Cloud className={`w-3.5 h-3.5 ${syncStatus === 'syncing' ? 'animate-bounce text-amber-400' : syncStatus === 'offline' ? 'text-rose-400' : 'text-emerald-400'}`} />
                   <span className="hidden xl:inline">
-                    {syncStatus === 'syncing' ? 'Sincronizando...' : 'En Nube'}
+                    {syncStatus === 'syncing' ? 'Sincronizando...' : syncStatus === 'offline' ? 'Reconectar Nube' : 'En Nube'}
                   </span>
                 </button>
               )}
@@ -402,15 +406,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left font-medium transition-smooth ${
                   syncStatus === 'syncing'
                     ? 'bg-amber-950/30 text-amber-300 border-amber-800/40 animate-pulse'
+                    : syncStatus === 'offline'
+                    ? 'bg-rose-950/30 text-rose-300 border-rose-800/40'
                     : 'bg-emerald-950/30 text-emerald-300 border-emerald-800/40'
                 }`}
               >
                 <div className="flex items-center gap-2.5">
-                  <Cloud className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-bounce text-amber-400' : 'text-emerald-400'}`} />
+                  <Cloud className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-bounce text-amber-400' : syncStatus === 'offline' ? 'text-rose-400' : 'text-emerald-400'}`} />
                   <span>Base de Datos en Nube (Multiusuario)</span>
                 </div>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">
-                  {syncStatus === 'syncing' ? 'Sincronizando' : 'Activo'}
+                <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                  syncStatus === 'syncing'
+                    ? 'bg-amber-500/20 text-amber-300'
+                    : syncStatus === 'offline'
+                    ? 'bg-rose-500/20 text-rose-300'
+                    : 'bg-emerald-500/20 text-emerald-300'
+                }`}>
+                  {syncStatus === 'syncing' ? 'Sincronizando' : syncStatus === 'offline' ? 'Reconectar' : 'Activo'}
                 </span>
               </button>
             )}

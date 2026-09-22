@@ -552,9 +552,9 @@ def create_pdf(filename):
             Paragraph("Almacenamiento seguro en el navegador sin límite de 5MB. Retiene planos PDF, documentos, fotos GPS en Base64 y usuarios de forma persistente en cada equipo o móvil.", body_style)
         ],
         [
-            Paragraph("<b>Canal Central en la Nube (REST)</b>", body_style),
-            Paragraph("<b>Endpoint:</b><br/><font size='6.3' color='#0284c7'>https://kvdb.io/4y9y213yLh4mXbQz7T1u8p/</font><br/><b>Canal:</b> <font name='Courier-Bold'>obras_central_database</font>", body_style),
-            Paragraph("Canal de sincronización cifrado HTTPS. Permite que múltiples dispositivos (móvil, tablet, oficina) compartan obras, visitas y usuarios en tiempo real.", body_style)
+            Paragraph("<b>Canal Central en la Nube (REST + SSE)</b>", body_style),
+            Paragraph("<b>Canal en Vivo (SSE + REST):</b><br/><font size='6.1' color='#0284c7'>https://ntfy.sh/geobras_obras_central_database_v1</font><br/><b>Canal Persistente (kvdb):</b><br/><font size='6.1' color='#0284c7'>https://kvdb.io/35hEgoCjGZugMmoFEzUK9R/obras_central_database</font>", body_style),
+            Paragraph("Doble canal: Actualización en vivo instantánea multi-dispositivo mediante Server-Sent Events (SSE) y persistencia en la nube compartida entre PCs, móviles y tablets.", body_style)
         ],
         [
             Paragraph("<b>Carpeta de Custodia para Respaldos</b>", body_style),
@@ -604,7 +604,7 @@ def create_pdf(filename):
         ],
         [
             Paragraph("<b>Cuentas de Soporte / Admin:</b>", body_bold),
-            Paragraph("<b>david.perez@empresa.com</b> / <b>soporte@empresa.com</b>", body_style),
+            Paragraph("<b>obras.gestion.central@gmail.com</b><br/><b>david.perez@empresa.com</b>", body_style),
             Paragraph("<b>Hosting Web:</b>", body_bold),
             Paragraph("GitHub Pages (SSL y CI/CD automático)", body_style)
         ]

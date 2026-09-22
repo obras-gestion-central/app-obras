@@ -21,7 +21,7 @@ import {
   REGISTRO_USUARIOS_STORAGE_KEY 
 } from '@/lib/userRegistry';
 import { persistDataSafely, loadDataSafely } from '@/lib/storageManager';
-import { pushToCloud, pullFromCloud, exportFullBackupFile } from '@/lib/cloudSync';
+import { pushToCloud, pullFromCloud, exportFullBackupFile, subscribeToLiveCloudUpdates } from '@/lib/cloudSync';
 import { generateFullDatabaseZip } from '@/lib/zipExporter';
 import { Navbar } from '@/components/Navbar';
 import { MapView } from '@/components/MapView';
@@ -260,6 +260,44 @@ export default function HomePage() {
     }
 
     initStorageAndCloud();
+  }, []);
+
+  // Suscripción en Tiempo Real (SSE) a cambios emitidos por cualquier otro dispositivo
+  useEffect(() => {
+    const unsubscribe = subscribeToLiveCloudUpdates((cloudData) => {
+      if (cloudData) {
+        if (Array.isArray(cloudData.obras) && cloudData.obras.length > 0) {
+          setObras(cloudData.obras);
+          persistDataSafely('geobras_obras_list', cloudData.obras);
+        }
+        if (Array.isArray(cloudData.visitas)) {
+          setVisitas(cloudData.visitas);
+          persistDataSafely('geobras_visitas_list', cloudData.visitas);
+        }
+        if (Array.isArray(cloudData.documentos)) {
+          setDocumentos(cloudData.documentos);
+          persistDataSafely('geobras_documentos_list', cloudData.documentos);
+        }
+        if (Array.isArray(cloudData.fotos)) {
+          setFotos(cloudData.fotos);
+          persistDataSafely('geobras_fotos_list', cloudData.fotos);
+        }
+        if (Array.isArray(cloudData.userRegistry) && cloudData.userRegistry.length > 0) {
+          saveUserRegistry(cloudData.userRegistry);
+          setUsers(getUserRegistry());
+        }
+        if (Array.isArray(cloudData.taxonomias)) {
+          setTaxonomias(cloudData.taxonomias);
+          persistDataSafely('geobras_taxonomias', cloudData.taxonomias);
+        }
+        setCloudSyncStatus('synced');
+        setLastSyncTime(new Date().toLocaleTimeString('es-ES'));
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Sincronización periódica en segundo plano cada 20 segundos
@@ -1136,8 +1174,22 @@ export default function HomePage() {
         setLastSyncTime(new Date().toLocaleTimeString('es-ES'));
         alert('Base de datos sincronizada con la nube con éxito.');
       } else {
-        syncToCloud();
-        alert('Datos locales volcados y sincronizados con la nube.');
+        const ok = await pushToCloud({
+          obras,
+          visitas,
+          documentos,
+          fotos,
+          userRegistry: getUserRegistry(),
+          taxonomias,
+        });
+        if (ok) {
+          setCloudSyncStatus('synced');
+          setLastSyncTime(new Date().toLocaleTimeString('es-ES'));
+          alert('Estado local subido con éxito al canal central en la nube.');
+        } else {
+          setCloudSyncStatus('offline');
+          alert('Aviso: No se pudo contactar con el canal central de sincronización.');
+        }
       }
     } catch (err) {
       setCloudSyncStatus('offline');
