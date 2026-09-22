@@ -1244,8 +1244,19 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>¿Necesitas extraer fotos o documentos de una copia .json sin abrir la app?</span>
+                <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-500">
+                  <div className="flex items-center gap-2">
+                    <a
+                      href="Guia_Pruebas_GEOBRAS.pdf"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-bold text-purple-700 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 flex items-center gap-1 transition-colors"
+                      title="Descargar la Guía Oficial de Socorro, Pruebas y Directrices Técnicas en PDF"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Guía Oficial de Socorro y Directrices (PDF) &rarr;</span>
+                    </a>
+                  </div>
                   <a
                     href="recuperador.html"
                     target="_blank"
