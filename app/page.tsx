@@ -22,6 +22,7 @@ import {
 } from '@/lib/userRegistry';
 import { persistDataSafely, loadDataSafely } from '@/lib/storageManager';
 import { pushToCloud, pullFromCloud, exportFullBackupFile } from '@/lib/cloudSync';
+import { generateFullDatabaseZip } from '@/lib/zipExporter';
 import { Navbar } from '@/components/Navbar';
 import { MapView } from '@/components/MapView';
 import { TimelineFeed } from '@/components/TimelineFeed';
@@ -1091,6 +1092,30 @@ export default function HomePage() {
       jsonStr,
       'application/json;charset=utf-8'
     );
+  };
+
+  // Exportar copia íntegra empaquetada en ZIP estructurado con fotos JPG, documentos y Excel
+  const handleExportFullZip = async () => {
+    try {
+      const zipBlob = await generateFullDatabaseZip({
+        obras,
+        visitas,
+        documentos,
+        fotos,
+        userRegistry: getUserRegistry(),
+      });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `GEOBRAS_EXPEDIENTES_COMPLETOS_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error('Error generando archivo ZIP:', err);
+      alert('Se produjo un error al empaquetar el archivo ZIP.');
+    }
   };
 
   // Restaurar base de datos completa desde archivo JSON
@@ -2348,6 +2373,7 @@ export default function HomePage() {
           lastSyncTime={lastSyncTime}
           onExportFullBackup={handleExportFullBackup}
           onImportFullBackup={handleImportFullBackup}
+          onExportZip={handleExportFullZip}
         />
       )}
 

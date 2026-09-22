@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GEOBRAS • Extractor de Copias de Seguridad (.json)</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-dark: #0369a1;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --success: #16a34a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+    .container { max-width: 800px; width: 100%; }
+    .header { text-align: center; margin-bottom: 28px; }
+    .header h1 { font-size: 26px; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+    .header p { color: var(--muted); font-size: 14px; max-width: 600px; margin: 0 auto; line-height: 1.5; }
+    .badge { display: inline-block; background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 10px; }
+    
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); margin-bottom: 20px; }
+    
+    .dropzone { border: 2px dashed #94a3b8; border-radius: 12px; padding: 36px 20px; text-align: center; background: #f1f5f9; cursor: pointer; transition: all 0.2s; }
+    .dropzone:hover, .dropzone.dragover { border-color: var(--primary); background: #f0f9ff; }
+    .dropzone svg { width: 48px; height: 48px; color: var(--muted); margin-bottom: 12px; }
+    .dropzone strong { display: block; font-size: 16px; color: var(--text); margin-bottom: 4px; }
+    .dropzone span { font-size: 13px; color: var(--muted); }
+    
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 20px 0; }
+    .stat-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+    .stat-number { font-size: 24px; font-weight: 800; color: var(--primary); }
+    .stat-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+    
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; text-decoration: none; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-success:hover { background: #15803d; }
+    .btn-secondary { background: #e2e8f0; color: #1e293b; }
+    .btn-secondary:hover { background: #cbd5e1; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+    @media(min-width: 640px) {
+      .actions { flex-direction: row; }
+    }
+    
+    .progress-bar { height: 8px; background: #e2e8f0; border-radius: 9999px; overflow: hidden; margin-top: 14px; display: none; }
+    .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.2s; }
+    .progress-text { font-size: 12px; color: var(--muted); text-align: center; margin-top: 6px; display: none; }
+    
+    .file-list { margin-top: 20px; max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: 10px; }
+    .file-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; }
+    .file-item:last-child { border-bottom: none; }
+    .file-name { font-weight: 600; color: var(--text); }
+    .file-meta { color: var(--muted); font-size: 11px; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <div class="badge">Herramienta de Emergencia Offline</div>
+      <h1>Recuperador de Archivos y Fotos GEOBRAS</h1>
+      <p>
+        Si alguna vez no puedes acceder a la aplicación web, esta página te permite volcar inmediatamente todo el contenido de tu copia de seguridad <code>.json</code> a archivos reales de <strong>Excel (.csv)</strong>, fotografías <strong>JPEG</strong> y documentos <strong>PDF / Word</strong> en tu ordenador, sin necesidad de conexión a internet.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        <strong>Selecciona o arrastra aquí tu archivo .json</strong>
+        <span>(Por ejemplo: GEOBRAS_CopiaSeguridad_Completa_2026-09-22.json)</span>
+        <input type="file" id="fileInput" accept=".json" style="display: none;">
+      </div>
+
+      <div id="resultsSection" style="display: none;">
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-number" id="obrasCount">0</div>
+            <div class="stat-label">Obras</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-number" id="docsCount">0</div>
+            <div class="stat-label">Documentos (PDF/Doc)</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-number" id="fotosCount">0</div>
+            <div class="stat-label">Fotos JPG</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-number" id="visitasCount">0</div>
+            <div class="stat-label">Visitas GPS</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-success" id="btnDownloadZip" onclick="exportToZip()">
+            📦 Descargar Todo en ZIP (Carpetas, Fotos y Docs)
+          </button>
+          <button class="btn btn-primary" id="btnDownloadExcel" onclick="exportToExcel()">
+            📊 Descargar Listado Excel (.csv)
+          </button>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">Comprimiendo archivos...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentBackupData = null;
+
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+
+    ['dragenter', 'dragover'].forEach(name => {
+      dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropzone.addEventListener(name, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); });
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) processFile(files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const files = e.target.files;
+      if (files && files.length > 0) processFile(files[0]);
+    });
+
+    function processFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!parsed || typeof parsed !== 'object') throw new Error();
+          currentBackupData = parsed;
+
+          document.getElementById('obrasCount').textContent = (parsed.obras || []).length;
+          document.getElementById('docsCount').textContent = (parsed.documentos || []).length;
+          document.getElementById('fotosCount').textContent = (parsed.fotos || []).length;
+          document.getElementById('visitasCount').textContent = (parsed.visitas || []).length;
+
+          document.getElementById('resultsSection').style.display = 'block';
+        } catch (err) {
+          alert('El archivo seleccionado no es una copia de seguridad JSON válida.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function base64ToUint8(base64) {
+      const clean = base64.includes(',') ? base64.split(',')[1] : base64;
+      const bin = atob(clean);
+      const len = bin.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    function sanitize(str) {
+      return (str || '').replace(/[/\\?%*:|"<>]/g, '_').trim().substring(0, 40);
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function exportToExcel() {
+      if (!currentBackupData || !currentBackupData.obras) return;
+      const BOM = '\uFEFF';
+      let csv = 'Código;Título;Municipio;Provincia;Estado;Fecha Inicio;Fecha Fin;Responsable;Presupuesto;Avance %\n';
+      currentBackupData.obras.forEach(o => {
+        csv += `"${o.codigo || o.id}";"${o.titulo}";"${o.municipio}";"${o.provincia}";"${o.estado}";"${o.fechaInicio}";"${o.fechaFinPrevista}";"${o.responsableNombre}";"${o.presupuestoAdjudicacion}";"${o.porcentajeAvance}%"\n`;
+      });
+      const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8' });
+      triggerDownload(blob, `Listado_Obras_Emergencia_${new Date().toISOString().split('T')[0]}.csv`);
+    }
+
+    async function exportToZip() {
+      if (!currentBackupData) return;
+      if (typeof JSZip === 'undefined') {
+        alert('Se requiere JSZip para empaquetar en ZIP.');
+        return;
+      }
+
+      const zip = new JSZip();
+      const pBar = document.getElementById('progressBar');
+      const pFill = document.getElementById('progressFill');
+      const pText = document.getElementById('progressText');
+      const btn = document.getElementById('btnDownloadZip');
+
+      btn.disabled = true;
+      pBar.style.display = 'block';
+      pText.style.display = 'block';
+
+      const BOM = '\uFEFF';
+      let csv = 'Código;Título;Municipio;Provincia;Estado;Fecha Inicio;Fecha Fin;Responsable;Presupuesto;Avance %\n';
+      (currentBackupData.obras || []).forEach(o => {
+        csv += `"${o.codigo || o.id}";"${o.titulo}";"${o.municipio}";"${o.provincia}";"${o.estado}";"${o.fechaInicio}";"${o.fechaFinPrevista}";"${o.responsableNombre}";"${o.presupuestoAdjudicacion}";"${o.porcentajeAvance}%"\n`;
+      });
+      zip.file('00_Listado_Obras.csv', BOM + csv);
+
+      const obras = currentBackupData.obras || [];
+      const docs = currentBackupData.documentos || [];
+      const fotos = currentBackupData.fotos || [];
+      const visitas = currentBackupData.visitas || [];
+
+      const rootFolder = zip.folder('Obras_Expedientes');
+
+      obras.forEach(obra => {
+        const folderName = sanitize(`${obra.codigo || obra.id}_${obra.titulo}`);
+        const obraDir = rootFolder.folder(folderName);
+
+        // Ficha
+        const obraVisitas = visitas.filter(v => v.obraId === obra.id);
+        const txt = `EXPEDIENTE: ${obra.titulo}\nCódigo: ${obra.codigo || obra.id}\nEstado: ${obra.estado}\nPresupuesto: ${obra.presupuestoAdjudicacion} €\nAvance: ${obra.porcentajeAvance}%\nResponsable: ${obra.responsableNombre}\nDirección: ${obra.direccion}, ${obra.municipio}\n\nVISITAS:\n` + 
+          obraVisitas.map(v => `- [${v.fechaHora}] ${v.tipoVisita}: ${v.observaciones}`).join('\n');
+        obraDir.file('00_Ficha_Obra.txt', txt);
+
+        // Docs
+        const obraDocs = docs.filter(d => d.obraId === obra.id);
+        if (obraDocs.length > 0) {
+          const docsDir = obraDir.folder('Documentos');
+          obraDocs.forEach(d => {
+            if (d.urlDescarga && d.urlDescarga.startsWith('data:')) {
+              try {
+                docsDir.file(d.nombreArchivo || 'documento.bin', base64ToUint8(d.urlDescarga), { binary: true });
+              } catch(e) {}
+            }
+          });
+        }
+
+        // Fotos
+        const obraFotos = fotos.filter(f => f.obraId === obra.id);
+        if (obraFotos.length > 0) {
+          const fotosDir = obraDir.folder('Fotografias');
+          obraFotos.forEach((f, idx) => {
+            const raw = f.url || f.miniaturaUrl;
+            if (raw && raw.startsWith('data:')) {
+              try {
+                const name = `${f.fechaCaptura ? f.fechaCaptura.split('T')[0] : 'foto'}_${sanitize(f.titulo || 'foto_' + idx)}.jpg`;
+                fotosDir.file(name, base64ToUint8(raw), { binary: true });
+              } catch(e) {}
+            }
+          });
+        }
+      });
+
+      pText.textContent = 'Comprimiendo archivo ZIP...';
+      const content = await zip.generateAsync({ type: 'blob' }, (meta) => {
+        pFill.style.width = meta.percent + '%';
+        pText.textContent = 'Comprimiendo: ' + Math.round(meta.percent) + '%';
+      });
+
+      triggerDownload(content, `GEOBRAS_RECUPERACION_TOTAL_${new Date().toISOString().split('T')[0]}.zip`);
+      pText.textContent = '¡Descarga completada con éxito!';
+      btn.disabled = false;
+    }
+  </script>
+</body>
+</html>

@@ -46,6 +46,7 @@ interface AdminUsersRolesModalProps {
   lastSyncTime?: string | null;
   onExportFullBackup?: () => void;
   onImportFullBackup?: (jsonContent: string) => void;
+  onExportZip?: () => void;
 }
 
 export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
@@ -64,6 +65,7 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   lastSyncTime,
   onExportFullBackup,
   onImportFullBackup,
+  onExportZip,
 }) => {
   const [activeTab, setActiveTab] = useState<'usuarios' | 'permisos' | 'nube'>('usuarios');
   
@@ -1196,13 +1198,24 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                 </p>
 
                 <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  {onExportZip && (
+                    <button
+                      type="button"
+                      onClick={onExportZip}
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                      title="Descargar todos los expedientes con carpetas por obra, fotos reales JPG y documentos PDF/DOC"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Descargar Todo en ZIP (Carpetas, Fotos JPG, Docs y Excel)
+                    </button>
+                  )}
+
                   {onExportFullBackup && (
                     <button
                       type="button"
                       onClick={onExportFullBackup}
                       className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
-                      <Download className="w-3.5 h-3.5" /> Exportar Copia de Seguridad Completa (.json)
+                      <Download className="w-3.5 h-3.5" /> Exportar Copia de Seguridad (.json)
                     </button>
                   )}
 
@@ -1229,6 +1242,18 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                       />
                     </label>
                   )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                  <span>¿Necesitas extraer fotos o documentos de una copia .json sin abrir la app?</span>
+                  <a
+                    href="recuperador.html"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-bold text-sky-600 hover:text-sky-700 underline flex items-center gap-1"
+                  >
+                    Abrir Extractor Offline de Emergencia &rarr;
+                  </a>
                 </div>
               </div>
             </div>
