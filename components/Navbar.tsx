@@ -37,7 +37,6 @@ interface NavbarProps {
   setActiveView: (view: 'mapa' | 'listado') => void;
   onGoHome?: () => void;
   onLogout?: () => void;
-  onClearCache?: () => void;
   currentUser?: User | null;
   syncStatus?: 'synced' | 'syncing' | 'offline';
   onSyncNow?: () => void;
@@ -57,7 +56,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveView,
   onGoHome,
   onLogout,
-  onClearCache,
   currentUser,
   syncStatus = 'synced',
   onSyncNow,
@@ -244,20 +242,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
-              {/* Botón para Limpiar Caché y Restablecer Datos */}
-              {onClearCache && (
-                <button
-                  onClick={() => {
-                    if (confirm('¿Deseas vaciar la memoria caché y restablecer los datos locales? Se cerrará la sesión actual.')) {
-                      onClearCache();
-                    }
-                  }}
-                  className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg border border-slate-700 transition-smooth"
-                  title="Vaciar caché y reiniciar datos"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              )}
+              {/* Botón para Refrescar la Página de forma Segura */}
+              <button
+                type="button"
+                onClick={() => {
+                  window.location.reload();
+                }}
+                className="p-1.5 text-slate-400 hover:text-sky-400 hover:bg-slate-800 rounded-lg border border-slate-700 transition-smooth"
+                title="Refrescar pantalla (recargar aplicación sin borrar datos)"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </button>
 
               {/* Botón Cerrar / Iniciar Sesión en Escritorio */}
               {onLogout && (
@@ -420,21 +415,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Limpiar Caché en Móvil */}
-            {onClearCache && (
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  if (confirm('¿Deseas vaciar la memoria caché y restablecer los datos locales? Se cerrará la sesión actual.')) {
-                    onClearCache();
-                  }
-                }}
-                className="w-full flex items-center gap-2.5 p-2.5 bg-amber-950/30 hover:bg-amber-900/40 text-amber-300 rounded-xl border border-amber-800/40 text-left font-medium transition-smooth"
-              >
-                <RefreshCw className="w-4 h-4 text-amber-400" />
-                <span>Vaciar Caché y Reiniciar Datos</span>
-              </button>
-            )}
+            {/* Refrescar Pantalla en Móvil */}
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                window.location.reload();
+              }}
+              className="w-full flex items-center gap-2.5 p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700 text-left font-medium transition-smooth"
+            >
+              <RefreshCw className="w-4 h-4 text-sky-400" />
+              <span>Refrescar Pantalla (Recargar)</span>
+            </button>
 
             {/* Cerrar o Iniciar Sesión en Móvil */}
             {onLogout && (

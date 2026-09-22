@@ -17,7 +17,7 @@ import {
   getUserRegistry, 
   saveUserRegistry, 
   sanitizeRegistryRecords, 
-  REGISTRO_ADMIN_DEFECTO, 
+  REGISTROS_DEFAULT, 
   REGISTRO_USUARIOS_STORAGE_KEY 
 } from '@/lib/userRegistry';
 import { persistDataSafely, loadDataSafely } from '@/lib/storageManager';
@@ -185,19 +185,39 @@ export default function HomePage() {
     async function initStorageAndCloud() {
       // 1. Carga segura desde IndexedDB (sin límites de 5MB para ficheros y fotos)
       try {
-        const [safeObras, safeVisitas, safeDocs, safeFotos, safeTax] = await Promise.all([
+        const [safeObras, safeVisitas, safeDocs, safeFotos, safeTax, safeUsers] = await Promise.all([
           loadDataSafely<Obra[]>('geobras_obras_list', obras),
           loadDataSafely<VisitaReport[]>('geobras_visitas_list', visitas),
           loadDataSafely<Documento[]>('geobras_documentos_list', documentos),
           loadDataSafely<FotoGPS[]>('geobras_fotos_list', fotos),
           loadDataSafely<TaxonomyItem[]>('geobras_taxonomias', taxonomias),
+          loadDataSafely<UserRegistryRecord[]>(REGISTRO_USUARIOS_STORAGE_KEY, getUserRegistry()),
         ]);
 
-        if (safeObras && safeObras.length > 0) setObras(safeObras);
-        if (safeVisitas && safeVisitas.length > 0) setVisitas(safeVisitas);
-        if (safeDocs && safeDocs.length > 0) setDocumentos(safeDocs);
-        if (safeFotos && safeFotos.length > 0) setFotos(safeFotos);
-        if (safeTax && safeTax.length > 0) setTaxonomias(safeTax);
+        if (safeObras && safeObras.length > 0) {
+          setObras(safeObras);
+          try { localStorage.setItem('geobras_obras_list', JSON.stringify(safeObras)); } catch {}
+        }
+        if (safeVisitas && safeVisitas.length > 0) {
+          setVisitas(safeVisitas);
+          try { localStorage.setItem('geobras_visitas_list', JSON.stringify(safeVisitas)); } catch {}
+        }
+        if (safeDocs && safeDocs.length > 0) {
+          setDocumentos(safeDocs);
+          try { localStorage.setItem('geobras_documentos_list', JSON.stringify(safeDocs)); } catch {}
+        }
+        if (safeFotos && safeFotos.length > 0) {
+          setFotos(safeFotos);
+          try { localStorage.setItem('geobras_fotos_list', JSON.stringify(safeFotos)); } catch {}
+        }
+        if (safeTax && safeTax.length > 0) {
+          setTaxonomias(safeTax);
+          try { localStorage.setItem('geobras_taxonomias', JSON.stringify(safeTax)); } catch {}
+        }
+        if (safeUsers && safeUsers.length > 0) {
+          saveUserRegistry(safeUsers);
+          setUsers(getUserRegistry());
+        }
       } catch (e) {
         console.warn('Error cargando desde IndexedDB:', e);
       }
@@ -1164,31 +1184,6 @@ export default function HomePage() {
     }
   };
 
-  // Limpiar toda la memoria caché y reiniciar datos a estado limpio
-  const handleClearAllCacheAndData = () => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.removeItem('geobras_user_session');
-        localStorage.removeItem('geobras_fotos_list');
-        localStorage.removeItem('geobras_documentos_list');
-        localStorage.removeItem('geobras_visitas_list');
-        localStorage.removeItem('geobras_obras_list');
-        localStorage.removeItem('geobras_taxonomias');
-        localStorage.removeItem('geobras_users_list');
-        localStorage.removeItem('geobras_users_list_v2');
-        localStorage.removeItem(REGISTRO_USUARIOS_STORAGE_KEY);
-      } catch {}
-    }
-    setCurrentUser(null);
-    setCurrentRole('CONSULTOR_EXTERNO');
-    setFotos([]);
-    setDocumentos([]);
-    setVisitas([]);
-    setObras(OBRAS_MOCK);
-    setUsers(getUserRegistry());
-    setShowLoginModal(true);
-  };
-
   // Control de hidratación de Next.js para evitar desajustes en el primer render
   if (!isClient) {
     return (
@@ -1209,7 +1204,6 @@ export default function HomePage() {
         isOpen={true}
         users={users}
         onLogin={handleLogin}
-        onClearCache={handleClearAllCacheAndData}
       />
     );
   }
@@ -1242,7 +1236,6 @@ export default function HomePage() {
         setActiveView={setActiveView}
         onGoHome={handleGoHome}
         onLogout={handleLogout}
-        onClearCache={handleClearAllCacheAndData}
         currentUser={currentUser || undefined}
         syncStatus={cloudSyncStatus}
         onSyncNow={handleManualSync}
@@ -2383,7 +2376,6 @@ export default function HomePage() {
         users={users}
         onLogin={handleLogin}
         onClose={handleCloseLoginModal}
-        onClearCache={handleClearAllCacheAndData}
       />
 
       {/* 7. Modal de Gestión Personal de Vocabulario y Taxonomías */}

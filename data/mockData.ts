@@ -10,6 +10,33 @@ export const USUARIOS_MOCK: User[] = [
     password: 'admin123',
     requiresPassword: true 
   },
+  { 
+    id: 'usr-2', 
+    name: 'Laura Gómez', 
+    email: 'laura.gomez@empresa.com', 
+    role: 'JEFE_OBRA', 
+    avatar: 'LG', 
+    password: 'jefe123',
+    requiresPassword: true 
+  },
+  { 
+    id: 'usr-3', 
+    name: 'Carlos Ruiz', 
+    email: 'carlos.ruiz@empresa.com', 
+    role: 'TECNICO_CAMPO', 
+    avatar: 'CR', 
+    password: 'tecnico123',
+    requiresPassword: true 
+  },
+  { 
+    id: 'usr-4', 
+    name: 'Ana Martínez', 
+    email: 'ana.martinez@empresa.com', 
+    role: 'CONSULTOR_EXTERNO', 
+    avatar: 'AM', 
+    password: 'consultor123',
+    requiresPassword: true 
+  },
 ];
 
 export const PERMISOS_POR_ROL: Record<UserRole, PermisosRol> = {

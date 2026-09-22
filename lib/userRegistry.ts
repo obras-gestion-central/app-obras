@@ -24,13 +24,66 @@ export const REGISTRO_ADMIN_DEFECTO: UserRegistryRecord = {
   notasSeguridad: 'Administrador principal del sistema (Protegido)',
 };
 
+// Cuentas predeterminadas autorizadas para el arranque inicial
+export const REGISTROS_DEFAULT: UserRegistryRecord[] = [
+  REGISTRO_ADMIN_DEFECTO,
+  {
+    id: 'usr-2',
+    name: 'Laura Gómez',
+    email: 'laura.gomez@empresa.com',
+    password: 'jefe123',
+    role: 'JEFE_OBRA',
+    avatar: 'LG',
+    activo: true,
+    bloqueado: false,
+    intentosFallidos: 0,
+    permisos: { ...PERMISOS_POR_ROL.JEFE_OBRA },
+    fechaRegistro: '2026-01-01T08:00:00.000Z',
+    ultimoAcceso: null,
+    registradoPor: 'Sistema Central GEOBRAS',
+    notasSeguridad: 'Jefe de obra principal',
+  },
+  {
+    id: 'usr-3',
+    name: 'Carlos Ruiz',
+    email: 'carlos.ruiz@empresa.com',
+    password: 'tecnico123',
+    role: 'TECNICO_CAMPO',
+    avatar: 'CR',
+    activo: true,
+    bloqueado: false,
+    intentosFallidos: 0,
+    permisos: { ...PERMISOS_POR_ROL.TECNICO_CAMPO },
+    fechaRegistro: '2026-01-01T08:00:00.000Z',
+    ultimoAcceso: null,
+    registradoPor: 'Sistema Central GEOBRAS',
+    notasSeguridad: 'Técnico de campo',
+  },
+  {
+    id: 'usr-4',
+    name: 'Ana Martínez',
+    email: 'ana.martinez@empresa.com',
+    password: 'consultor123',
+    role: 'CONSULTOR_EXTERNO',
+    avatar: 'AM',
+    activo: true,
+    bloqueado: false,
+    intentosFallidos: 0,
+    permisos: { ...PERMISOS_POR_ROL.CONSULTOR_EXTERNO },
+    fechaRegistro: '2026-01-01T08:00:00.000Z',
+    ultimoAcceso: null,
+    registradoPor: 'Sistema Central GEOBRAS',
+    notasSeguridad: 'Consultor externo / Auditor',
+  },
+];
+
 /**
  * Valida y sanea un array de registros asegurando integridad de datos,
  * formato de correo único y al menos un Administrador activo.
  */
 export function sanitizeRegistryRecords(raw: any[]): UserRegistryRecord[] {
   if (!Array.isArray(raw) || raw.length === 0) {
-    return [REGISTRO_ADMIN_DEFECTO];
+    return REGISTROS_DEFAULT;
   }
 
   const result: UserRegistryRecord[] = [];
@@ -87,7 +140,7 @@ export function sanitizeRegistryRecords(raw: any[]): UserRegistryRecord[] {
   }
 
   if (result.length === 0) {
-    return [REGISTRO_ADMIN_DEFECTO];
+    return REGISTROS_DEFAULT.map((r) => ({ ...r, permisos: { ...r.permisos } }));
   }
 
   // Garantizar que siempre haya al menos 1 Administrador activo para evitar bloqueo del sistema
@@ -114,7 +167,7 @@ export function sanitizeRegistryRecords(raw: any[]): UserRegistryRecord[] {
  */
 export function getUserRegistry(): UserRegistryRecord[] {
   if (typeof window === 'undefined') {
-    return [REGISTRO_ADMIN_DEFECTO];
+    return REGISTROS_DEFAULT.map((r) => ({ ...r, permisos: { ...r.permisos } }));
   }
 
   try {
@@ -153,13 +206,13 @@ export function getUserRegistry(): UserRegistryRecord[] {
       }
     }
 
-    // 3. Inicialización limpia con registro maestro predeterminado
-    const defaultRegistry = [REGISTRO_ADMIN_DEFECTO];
-    saveUserRegistry(defaultRegistry);
+    // 3. Inicialización limpia con registros maestros predeterminados (todos los roles)
+    // Se devuelve la lista predeterminada sin sobreescribir IndexedDB para preservar cualquier dato previo
+    const defaultRegistry = REGISTROS_DEFAULT.map((r) => ({ ...r, permisos: { ...r.permisos } }));
     return defaultRegistry;
   } catch (err) {
     console.error('Error cargando la tabla de registros de usuarios:', err);
-    return [REGISTRO_ADMIN_DEFECTO];
+    return REGISTROS_DEFAULT.map((r) => ({ ...r, permisos: { ...r.permisos } }));
   }
 }
 

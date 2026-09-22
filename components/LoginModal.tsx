@@ -10,7 +10,6 @@ interface LoginModalProps {
   users: User[];
   onLogin: (user: User) => void;
   onClose?: () => void;
-  onClearCache?: () => void;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({
@@ -18,7 +17,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   users,
   onLogin,
   onClose,
-  onClearCache,
 }) => {
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -161,26 +159,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Opciones de mantenimiento / Vaciar caché */}
-          {onClearCache && (
-            <div className="pt-2 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm('¿Deseas vaciar la memoria caché y restablecer los datos locales? Se reiniciarán los datos guardados en este navegador.')) {
-                    onClearCache();
-                  }
-                }}
-                className="w-full py-2 px-3 bg-slate-50 hover:bg-slate-100 active:scale-98 text-slate-600 hover:text-slate-800 text-[11px] font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200"
-                title="Vaciar caché local y restablecer la aplicación"
-              >
-                <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-                <span>Vaciar caché y reiniciar datos</span>
-              </button>
-            </div>
-          )}
-
         </div>
 
         {/* Pie informativo */}
