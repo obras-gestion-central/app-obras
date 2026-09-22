@@ -1,5 +1,6 @@
 import { UserRegistryRecord, UserRole, PermisosRol, User } from '@/types';
 import { PERMISOS_POR_ROL } from '@/data/mockData';
+import { persistDataSafely } from '@/lib/storageManager';
 
 export const REGISTRO_USUARIOS_STORAGE_KEY = 'geobras_registro_usuarios_db';
 const LEGACY_STORAGE_KEY_V2 = 'geobras_users_list_v2';
@@ -172,8 +173,8 @@ export function saveUserRegistry(records: UserRegistryRecord[]): boolean {
     const sanitized = sanitizeRegistryRecords(records);
     const serialized = JSON.stringify(sanitized);
     
-    // Guardar en la tabla maestra
-    localStorage.setItem(REGISTRO_USUARIOS_STORAGE_KEY, serialized);
+    // Guardar en la tabla maestra (con soporte IndexedDB masivo y seguro)
+    persistDataSafely(REGISTRO_USUARIOS_STORAGE_KEY, sanitized);
 
     // Sincronizar simultáneamente con el formato de usuario estándar para compatibilidad total
     const simpleUsers: User[] = sanitized.map((r) => ({

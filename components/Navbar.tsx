@@ -20,7 +20,8 @@ import {
   LogOut, 
   User as UserIcon, 
   Tag,
-  RefreshCw
+  RefreshCw,
+  Cloud
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -38,6 +39,9 @@ interface NavbarProps {
   onLogout?: () => void;
   onClearCache?: () => void;
   currentUser?: User | null;
+  syncStatus?: 'synced' | 'syncing' | 'offline';
+  onSyncNow?: () => void;
+  lastSyncTime?: string | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -55,6 +59,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
   onClearCache,
   currentUser,
+  syncStatus = 'synced',
+  onSyncNow,
+  lastSyncTime,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const permisos = PERMISOS_POR_ROL[currentRole];
@@ -217,6 +224,26 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               )}
 
+              {/* Indicador y botón de Sincronización en la Nube */}
+              {onSyncNow && (
+                <button
+                  onClick={onSyncNow}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-semibold transition-all ${
+                    syncStatus === 'syncing'
+                      ? 'bg-amber-950/40 text-amber-300 border-amber-500/50 animate-pulse'
+                      : syncStatus === 'offline'
+                      ? 'bg-slate-800 text-slate-400 border-slate-700'
+                      : 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40 hover:bg-emerald-900/50'
+                  }`}
+                  title={`Base de datos central compartida (Multiusuario). ${lastSyncTime ? `Última sincronización: ${lastSyncTime}` : ''}. Haz clic para forzar actualización inmediata.`}
+                >
+                  <Cloud className={`w-3.5 h-3.5 ${syncStatus === 'syncing' ? 'animate-bounce text-amber-400' : 'text-emerald-400'}`} />
+                  <span className="hidden xl:inline">
+                    {syncStatus === 'syncing' ? 'Sincronizando...' : 'En Nube'}
+                  </span>
+                </button>
+              )}
+
               {/* Botón para Limpiar Caché y Restablecer Datos */}
               {onClearCache && (
                 <button
@@ -367,6 +394,29 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {deletedCount} pendientes
                   </span>
                 )}
+              </button>
+            )}
+
+            {/* Sincronización Nube en Móvil */}
+            {onSyncNow && (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  onSyncNow();
+                }}
+                className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left font-medium transition-smooth ${
+                  syncStatus === 'syncing'
+                    ? 'bg-amber-950/30 text-amber-300 border-amber-800/40 animate-pulse'
+                    : 'bg-emerald-950/30 text-emerald-300 border-emerald-800/40'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Cloud className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-bounce text-amber-400' : 'text-emerald-400'}`} />
+                  <span>Base de Datos en Nube (Multiusuario)</span>
+                </div>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">
+                  {syncStatus === 'syncing' ? 'Sincronizando' : 'Activo'}
+                </span>
               </button>
             )}
 

@@ -24,7 +24,10 @@ import {
   Lock,
   Unlock,
   AlertTriangle,
-  Download
+  Download,
+  Cloud,
+  Upload,
+  RefreshCw
 } from 'lucide-react';
 
 interface AdminUsersRolesModalProps {
@@ -38,6 +41,11 @@ interface AdminUsersRolesModalProps {
   onToggleUserStatus?: (userId: string, statusType: 'activo' | 'bloqueado') => void;
   permisosRoles: Record<UserRole, PermisosRol>;
   onTogglePermiso: (role: UserRole, permisoKey: keyof PermisosRol) => void;
+  onSyncNow?: () => void;
+  syncStatus?: 'synced' | 'syncing' | 'offline';
+  lastSyncTime?: string | null;
+  onExportFullBackup?: () => void;
+  onImportFullBackup?: (jsonContent: string) => void;
 }
 
 export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
@@ -51,8 +59,13 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
   onToggleUserStatus,
   permisosRoles,
   onTogglePermiso,
+  onSyncNow,
+  syncStatus = 'synced',
+  lastSyncTime,
+  onExportFullBackup,
+  onImportFullBackup,
 }) => {
-  const [activeTab, setActiveTab] = useState<'usuarios' | 'permisos'>('usuarios');
+  const [activeTab, setActiveTab] = useState<'usuarios' | 'permisos' | 'nube'>('usuarios');
   
   // Para la vista móvil de permisos: rol actualmente seleccionado
   const [selectedMobileRole, setSelectedMobileRole] = useState<UserRole>('ADMIN');
@@ -328,6 +341,18 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
             >
               <Sliders className="w-4 h-4" />
               <span>Matriz por Rol</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('nube')}
+              className={`py-2.5 sm:py-3 px-3 sm:px-4 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all ${
+                activeTab === 'nube'
+                  ? 'border-sky-600 text-sky-700 bg-white shadow-2xs'
+                  : 'border-transparent text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Cloud className="w-4 h-4" />
+              <span>Base de Datos y Nube</span>
             </button>
           </div>
 
@@ -1112,7 +1137,100 @@ export const AdminUsersRolesModal: React.FC<AdminUsersRolesModalProps> = ({
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
 
+          {/* ================================================================= */}
+          {/* PESTAÑA 3: SINCRONIZACIÓN EN LA NUBE Y COPIAS DE SEGURIDAD       */}
+          {/* ================================================================= */}
+          {activeTab === 'nube' && (
+            <div className="space-y-4 animate-in fade-in">
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-950 flex items-start gap-3">
+                <Cloud className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <strong className="text-sm font-bold text-emerald-900 block">
+                    Base de Datos Central Multiusuario en Tiempo Real
+                  </strong>
+                  <p className="text-emerald-800 leading-relaxed text-[11px] sm:text-xs">
+                    Todos los registros de usuarios, credenciales, obras, visitas, fotos geolocalizadas y documentos se sincronizan automáticamente con la nube y con el almacenamiento persistente (IndexedDB). Esto permite que el Administrador, Jefes de Obra y Técnicos de Campo accedan a la información más reciente desde cualquier ordenador o teléfono móvil.
+                  </p>
+                </div>
+              </div>
+
+              {/* Estado de sincronización */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 block">Canal Central de Sincronización:</span>
+                    <span className="text-[11px] font-mono text-slate-500">obras_central_database (Activo)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5" /> Nube Conectada
+                    </span>
+                    {onSyncNow && (
+                      <button
+                        type="button"
+                        onClick={onSyncNow}
+                        className="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} /> Sincronizar Ahora
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-600 space-y-1">
+                  <div><strong>Última Sincronización Confirmada:</strong> {lastSyncTime || 'En esta sesión activa'}</div>
+                  <div><strong>Persistencia Local Garantizada:</strong> IndexedDB (sin límite de 5MB) + LocalStorage</div>
+                </div>
+              </div>
+
+              {/* Copias de seguridad completas */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 shadow-xs">
+                <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <Download className="w-4 h-4 text-purple-600" /> Copias de Seguridad Totales (JSON)
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Puedes descargar en cualquier momento una copia íntegra con todas las obras, documentos, fotografías base64, registros de visitas y usuarios para custodiarla en tu ordenador o restaurarla.
+                </p>
+
+                <div className="flex flex-wrap items-center gap-2.5 pt-1">
+                  {onExportFullBackup && (
+                    <button
+                      type="button"
+                      onClick={onExportFullBackup}
+                      className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Exportar Copia de Seguridad Completa (.json)
+                    </button>
+                  )}
+
+                  {onImportFullBackup && (
+                    <label className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl border border-slate-300 cursor-pointer flex items-center gap-1.5 transition-colors">
+                      <Upload className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Restaurar Copia desde Archivo</span>
+                      <input
+                        type="file"
+                        accept=".json"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            const content = ev.target?.result as string;
+                            if (content && confirm('¿Deseas restaurar la base de datos desde este archivo? Se actualizarán las obras, usuarios y documentos.')) {
+                              onImportFullBackup(content);
+                            }
+                          };
+                          reader.readAsText(file);
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

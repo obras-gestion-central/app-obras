@@ -20,6 +20,8 @@ import {
   REGISTRO_ADMIN_DEFECTO, 
   REGISTRO_USUARIOS_STORAGE_KEY 
 } from '@/lib/userRegistry';
+import { persistDataSafely, loadDataSafely } from '@/lib/storageManager';
+import { pushToCloud, pullFromCloud, exportFullBackupFile } from '@/lib/cloudSync';
 import { Navbar } from '@/components/Navbar';
 import { MapView } from '@/components/MapView';
 import { TimelineFeed } from '@/components/TimelineFeed';
@@ -142,11 +144,124 @@ export default function HomePage() {
   const [users, setUsers] = useState<User[]>(getStoredUsers);
   const [permisosRoles, setPermisosRoles] = useState<Record<UserRole, PermisosRol>>(PERMISOS_POR_ROL);
 
-  // Sincronización en cliente y carga fiable de usuarios persistidos
+  // Estado de sincronización en la nube multiusuario
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+
+  // Helper para empujar estado a la nube
+  const syncToCloud = (overrides?: Partial<{
+    obras: Obra[];
+    visitas: VisitaReport[];
+    documentos: Documento[];
+    fotos: FotoGPS[];
+    userRegistry: UserRegistryRecord[];
+    taxonomias: TaxonomyItem[];
+  }>) => {
+    setCloudSyncStatus('syncing');
+    pushToCloud({
+      obras: overrides?.obras || obras,
+      visitas: overrides?.visitas || visitas,
+      documentos: overrides?.documentos || documentos,
+      fotos: overrides?.fotos || fotos,
+      userRegistry: overrides?.userRegistry || getUserRegistry(),
+      taxonomias: overrides?.taxonomias || taxonomias,
+    }).then((ok) => {
+      if (ok) {
+        setCloudSyncStatus('synced');
+        setLastSyncTime(new Date().toLocaleTimeString('es-ES'));
+      } else {
+        setCloudSyncStatus('offline');
+      }
+    });
+  };
+
+  // Carga asíncrona segura desde IndexedDB y sincronización con Nube
   useEffect(() => {
     setIsClient(true);
-    const stored = getStoredUsers();
-    setUsers(stored);
+    const storedUsers = getStoredUsers();
+    setUsers(storedUsers);
+
+    async function initStorageAndCloud() {
+      // 1. Carga segura desde IndexedDB (sin límites de 5MB para ficheros y fotos)
+      try {
+        const [safeObras, safeVisitas, safeDocs, safeFotos, safeTax] = await Promise.all([
+          loadDataSafely<Obra[]>('geobras_obras_list', obras),
+          loadDataSafely<VisitaReport[]>('geobras_visitas_list', visitas),
+          loadDataSafely<Documento[]>('geobras_documentos_list', documentos),
+          loadDataSafely<FotoGPS[]>('geobras_fotos_list', fotos),
+          loadDataSafely<TaxonomyItem[]>('geobras_taxonomias', taxonomias),
+        ]);
+
+        if (safeObras && safeObras.length > 0) setObras(safeObras);
+        if (safeVisitas && safeVisitas.length > 0) setVisitas(safeVisitas);
+        if (safeDocs && safeDocs.length > 0) setDocumentos(safeDocs);
+        if (safeFotos && safeFotos.length > 0) setFotos(safeFotos);
+        if (safeTax && safeTax.length > 0) setTaxonomias(safeTax);
+      } catch (e) {
+        console.warn('Error cargando desde IndexedDB:', e);
+      }
+
+      // 2. Consulta a la nube central para obtener cambios realizados por otros usuarios/dispositivos
+      try {
+        const cloudData = await pullFromCloud();
+        if (cloudData) {
+          if (Array.isArray(cloudData.obras) && cloudData.obras.length > 0) {
+            setObras(cloudData.obras);
+            persistDataSafely('geobras_obras_list', cloudData.obras);
+          }
+          if (Array.isArray(cloudData.visitas)) {
+            setVisitas(cloudData.visitas);
+            persistDataSafely('geobras_visitas_list', cloudData.visitas);
+          }
+          if (Array.isArray(cloudData.documentos)) {
+            setDocumentos(cloudData.documentos);
+            persistDataSafely('geobras_documentos_list', cloudData.documentos);
+          }
+          if (Array.isArray(cloudData.fotos)) {
+            setFotos(cloudData.fotos);
+            persistDataSafely('geobras_fotos_list', cloudData.fotos);
+          }
+          if (Array.isArray(cloudData.userRegistry) && cloudData.userRegistry.length > 0) {
+            saveUserRegistry(cloudData.userRegistry);
+            setUsers(getUserRegistry());
+          }
+          if (Array.isArray(cloudData.taxonomias) && cloudData.taxonomias.length > 0) {
+            setTaxonomias(cloudData.taxonomias);
+            persistDataSafely('geobras_taxonomias', cloudData.taxonomias);
+          }
+          setCloudSyncStatus('synced');
+          setLastSyncTime(new Date().toLocaleTimeString('es-ES'));
+        }
+      } catch (e) {
+        console.warn('Error en sincronización inicial de nube:', e);
+      }
+    }
+
+    initStorageAndCloud();
+  }, []);
+
+  // Sincronización periódica en segundo plano cada 20 segundos
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const cloudData = await pullFromCloud();
+        if (cloudData) {
+          if (Array.isArray(cloudData.obras) && cloudData.obras.length > 0) setObras(cloudData.obras);
+          if (Array.isArray(cloudData.visitas)) setVisitas(cloudData.visitas);
+          if (Array.isArray(cloudData.documentos)) setDocumentos(cloudData.documentos);
+          if (Array.isArray(cloudData.fotos)) setFotos(cloudData.fotos);
+          if (Array.isArray(cloudData.userRegistry) && cloudData.userRegistry.length > 0) {
+            saveUserRegistry(cloudData.userRegistry);
+            setUsers(getUserRegistry());
+          }
+          if (Array.isArray(cloudData.taxonomias)) setTaxonomias(cloudData.taxonomias);
+          setCloudSyncStatus('synced');
+          setLastSyncTime(new Date().toLocaleTimeString('es-ES'));
+        }
+      } catch {}
+    }, 20000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Sesión y Autenticación de Usuario (Inicia cerrada / null por defecto para requerir identificación limpia)
@@ -257,6 +372,7 @@ export default function HomePage() {
     currentRecords[targetIndex].permisos = { ...PERMISOS_POR_ROL[newRole] };
     saveUserRegistry(currentRecords);
     setUsers(getUserRegistry());
+    syncToCloud({ userRegistry: currentRecords });
 
     if (currentUser && currentUser.id === userId) {
       const updatedUser: User = { 
@@ -309,6 +425,7 @@ export default function HomePage() {
     const updated = [...currentRecords, createdRecord];
     saveUserRegistry(updated);
     setUsers(getUserRegistry());
+    syncToCloud({ userRegistry: updated });
   };
 
   const handleEditUser = (updatedUser: User) => {
@@ -348,6 +465,7 @@ export default function HomePage() {
     currentRecords[targetIndex] = updatedRecord;
     saveUserRegistry(currentRecords);
     setUsers(getUserRegistry());
+    syncToCloud({ userRegistry: currentRecords });
 
     if (currentUser && currentUser.id === updatedUser.id) {
       const updatedSessionUser: User = {
@@ -373,7 +491,7 @@ export default function HomePage() {
   const handleDeleteUser = (userId: string) => {
     const currentRecords = getUserRegistry();
     const targetUser = currentRecords.find((u) => u.id === userId);
-    const activeAdmins = currentRecords.filter((u) => u.role === 'ADMIN' && u.activo && !u.bloqueado);
+    const activeAdmins = currentRecords.filter((r) => r.role === 'ADMIN' && r.activo && !r.bloqueado);
 
     if (targetUser?.role === 'ADMIN' && activeAdmins.length <= 1) {
       alert('No es posible eliminar al único Administrador activo del sistema. Debe existir al menos un Administrador.');
@@ -383,6 +501,7 @@ export default function HomePage() {
     const filtered = currentRecords.filter((u) => u.id !== userId);
     saveUserRegistry(filtered);
     setUsers(getUserRegistry());
+    syncToCloud({ userRegistry: filtered });
 
     if (currentUser?.id === userId) {
       handleLogout();
@@ -420,6 +539,7 @@ export default function HomePage() {
     currentRecords[targetIndex] = target;
     saveUserRegistry(currentRecords);
     setUsers(getUserRegistry());
+    syncToCloud({ userRegistry: currentRecords });
 
     if (currentUser?.id === userId && (!target.activo || target.bloqueado)) {
       alert('Su cuenta ha sido desactivada o bloqueada por la administración. La sesión finalizará.');
@@ -479,9 +599,8 @@ export default function HomePage() {
     };
     setTaxonomias((prev) => {
       const updated = [...prev, newItem];
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('geobras_taxonomias', JSON.stringify(updated));
-      }
+      persistDataSafely('geobras_taxonomias', updated);
+      syncToCloud({ taxonomias: updated });
       return updated;
     });
   };
@@ -492,55 +611,60 @@ export default function HomePage() {
     newValue: string,
     category: CategoriaTaxonomia
   ) => {
-    // 1. Actualizar en lista de taxonomías y guardar en localStorage
+    // 1. Actualizar en lista de taxonomías
     setTaxonomias((prev) => {
       const updated = prev.map((t) => (t.id === id ? { ...t, valor: newValue } : t));
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('geobras_taxonomias', JSON.stringify(updated));
-      }
+      persistDataSafely('geobras_taxonomias', updated);
+      syncToCloud({ taxonomias: updated });
       return updated;
     });
 
     // 2. Cascada: actualizar registros existentes para conservar coherencia
     if (category === 'TIPO_VISITA') {
-      setVisitas((prev) =>
-        prev.map((v) => (v.tipoVisita === oldValue ? { ...v, tipoVisita: newValue } : v))
-      );
+      setVisitas((prev) => {
+        const updated = prev.map((v) => (v.tipoVisita === oldValue ? { ...v, tipoVisita: newValue } : v));
+        persistDataSafely('geobras_visitas_list', updated);
+        syncToCloud({ visitas: updated });
+        return updated;
+      });
     } else if (category === 'LINEA_PRODUCTO') {
-      setObras((prev) =>
-        prev.map((o) =>
-          o.lineaProductoPrincipal === oldValue
-            ? { ...o, lineaProductoPrincipal: newValue }
-            : o
-        )
-      );
-      setVisitas((prev) =>
-        prev.map((v) =>
-          v.lineaProducto === oldValue ? { ...v, lineaProducto: newValue } : v
-        )
-      );
+      setObras((prev) => {
+        const updated = prev.map((o) =>
+          o.lineaProductoPrincipal === oldValue ? { ...o, lineaProductoPrincipal: newValue } : o
+        );
+        persistDataSafely('geobras_obras_list', updated);
+        syncToCloud({ obras: updated });
+        return updated;
+      });
+      setVisitas((prev) => {
+        const updated = prev.map((v) => (v.lineaProducto === oldValue ? { ...v, lineaProducto: newValue } : v));
+        persistDataSafely('geobras_visitas_list', updated);
+        syncToCloud({ visitas: updated });
+        return updated;
+      });
     } else if (category === 'TIPO_OBRA') {
-      setObras((prev) =>
-        prev.map((o) => (o.tipoObra === oldValue ? { ...o, tipoObra: newValue } : o))
-      );
+      setObras((prev) => {
+        const updated = prev.map((o) => (o.tipoObra === oldValue ? { ...o, tipoObra: newValue } : o));
+        persistDataSafely('geobras_obras_list', updated);
+        syncToCloud({ obras: updated });
+        return updated;
+      });
     }
   };
 
   const handleDeleteTaxonomia = (id: string) => {
     setTaxonomias((prev) => {
       const updated = prev.filter((t) => t.id !== id);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('geobras_taxonomias', JSON.stringify(updated));
-      }
+      persistDataSafely('geobras_taxonomias', updated);
+      syncToCloud({ taxonomias: updated });
       return updated;
     });
   };
 
   const handleResetTaxonomias = () => {
     setTaxonomias(TAXONOMIAS_INICIALES);
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('geobras_taxonomias');
-    }
+    persistDataSafely('geobras_taxonomias', TAXONOMIAS_INICIALES);
+    syncToCloud({ taxonomias: TAXONOMIAS_INICIALES });
   };
 
   const handleCreateTaxonomy = (category: 'LINEA_PRODUCTO' | 'TIPO_OBRA' | 'TIPO_VISITA', value: string) => {
@@ -594,11 +718,8 @@ export default function HomePage() {
           ? { ...o, isDeleted: true, deletedAt: new Date().toLocaleTimeString('es-ES'), deletedBy: currentUser?.name || 'Admin' }
           : o
       );
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_obras_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_obras_list', updated);
+      syncToCloud({ obras: updated });
       return updated;
     });
     setMobileExpedienteOpen(false);
@@ -607,11 +728,8 @@ export default function HomePage() {
   const handleRestoreObra = (obraId: string) => {
     setObras((prev) => {
       const updated = prev.map((o) => (o.id === obraId ? { ...o, isDeleted: false, deletedAt: undefined, deletedBy: undefined } : o));
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_obras_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_obras_list', updated);
+      syncToCloud({ obras: updated });
       return updated;
     });
   };
@@ -619,11 +737,8 @@ export default function HomePage() {
   const handleSoftDeleteDocumento = (docId: string) => {
     setDocumentos((prev) => {
       const updated = prev.map((d) => (d.id === docId ? { ...d, isDeleted: true } : d));
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_documentos_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_documentos_list', updated);
+      syncToCloud({ documentos: updated });
       return updated;
     });
   };
@@ -631,11 +746,8 @@ export default function HomePage() {
   const handleRestoreDocumento = (docId: string) => {
     setDocumentos((prev) => {
       const updated = prev.map((d) => (d.id === docId ? { ...d, isDeleted: false } : d));
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_documentos_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_documentos_list', updated);
+      syncToCloud({ documentos: updated });
       return updated;
     });
   };
@@ -674,13 +786,11 @@ export default function HomePage() {
         newFotosList.push(fullFoto);
       });
 
+      let finalFotos: FotoGPS[] = [];
       setFotos((prev) => {
         const updated = [...newFotosList, ...prev];
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('geobras_fotos_list', JSON.stringify(updated));
-          } catch {}
-        }
+        persistDataSafely('geobras_fotos_list', updated);
+        finalFotos = updated;
         return updated;
       });
     }
@@ -710,11 +820,8 @@ export default function HomePage() {
 
     setVisitas((prev) => {
       const updated = [newVis, ...prev];
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_visitas_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_visitas_list', updated);
+      syncToCloud({ visitas: updated, fotos: newFotosList.length > 0 ? [...newFotosList, ...fotos] : undefined });
       return updated;
     });
 
@@ -736,11 +843,8 @@ export default function HomePage() {
     if (nuevaVisitaData.estadoResultante && selectedObra) {
       setObras((prev) => {
         const updated = prev.map((o) => (o.id === selectedObra.id ? { ...o, estado: nuevaVisitaData.estadoResultante! } : o));
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('geobras_obras_list', JSON.stringify(updated));
-          } catch {}
-        }
+        persistDataSafely('geobras_obras_list', updated);
+        syncToCloud({ obras: updated });
         return updated;
       });
     }
@@ -775,11 +879,8 @@ export default function HomePage() {
 
     setObras((prev) => {
       const updated = [newOb, ...prev];
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_obras_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_obras_list', updated);
+      syncToCloud({ obras: updated });
       return updated;
     });
     setSelectedObraId(id);
@@ -819,11 +920,8 @@ export default function HomePage() {
 
     setDocumentos((prev) => {
       const updated = [newDoc, ...prev];
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_documentos_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_documentos_list', updated);
+      syncToCloud({ documentos: updated });
       return updated;
     });
 
@@ -867,11 +965,8 @@ export default function HomePage() {
 
     setFotos((prev) => {
       const updated = [newFoto, ...prev];
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_fotos_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_fotos_list', updated);
+      syncToCloud({ fotos: updated });
       return updated;
     });
 
@@ -898,11 +993,8 @@ export default function HomePage() {
   const handleDeleteFoto = (fotoId: string) => {
     setFotos((prev) => {
       const updated = prev.filter((f) => f.id !== fotoId);
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_fotos_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_fotos_list', updated);
+      syncToCloud({ fotos: updated });
       return updated;
     });
   };
@@ -913,11 +1005,8 @@ export default function HomePage() {
     if (!targetObraId) return;
     setFotos((prev) => {
       const updated = prev.filter((f) => f.obraId !== targetObraId);
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_fotos_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_fotos_list', updated);
+      syncToCloud({ fotos: updated });
       return updated;
     });
   };
@@ -926,11 +1015,8 @@ export default function HomePage() {
   const handleDeleteDocumento = (docId: string) => {
     setDocumentos((prev) => {
       const updated = prev.filter((d) => d.id !== docId);
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_documentos_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_documentos_list', updated);
+      syncToCloud({ documentos: updated });
       return updated;
     });
   };
@@ -941,13 +1027,116 @@ export default function HomePage() {
     if (!targetObraId) return;
     setDocumentos((prev) => {
       const updated = prev.filter((d) => d.obraId !== targetObraId);
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('geobras_documentos_list', JSON.stringify(updated));
-        } catch {}
-      }
+      persistDataSafely('geobras_documentos_list', updated);
+      syncToCloud({ documentos: updated });
       return updated;
     });
+  };
+
+  // Forzar sincronización manual con la nube
+  const handleManualSync = async () => {
+    setCloudSyncStatus('syncing');
+    try {
+      const cloudData = await pullFromCloud();
+      if (cloudData) {
+        if (Array.isArray(cloudData.obras) && cloudData.obras.length > 0) {
+          setObras(cloudData.obras);
+          persistDataSafely('geobras_obras_list', cloudData.obras);
+        }
+        if (Array.isArray(cloudData.visitas)) {
+          setVisitas(cloudData.visitas);
+          persistDataSafely('geobras_visitas_list', cloudData.visitas);
+        }
+        if (Array.isArray(cloudData.documentos)) {
+          setDocumentos(cloudData.documentos);
+          persistDataSafely('geobras_documentos_list', cloudData.documentos);
+        }
+        if (Array.isArray(cloudData.fotos)) {
+          setFotos(cloudData.fotos);
+          persistDataSafely('geobras_fotos_list', cloudData.fotos);
+        }
+        if (Array.isArray(cloudData.userRegistry) && cloudData.userRegistry.length > 0) {
+          saveUserRegistry(cloudData.userRegistry);
+          setUsers(getUserRegistry());
+        }
+        if (Array.isArray(cloudData.taxonomias)) {
+          setTaxonomias(cloudData.taxonomias);
+          persistDataSafely('geobras_taxonomias', cloudData.taxonomias);
+        }
+        setCloudSyncStatus('synced');
+        setLastSyncTime(new Date().toLocaleTimeString('es-ES'));
+        alert('Base de datos sincronizada con la nube con éxito.');
+      } else {
+        syncToCloud();
+        alert('Datos locales volcados y sincronizados con la nube.');
+      }
+    } catch (err) {
+      setCloudSyncStatus('offline');
+      alert('No se pudo conectar con el servidor de sincronización.');
+    }
+  };
+
+  // Exportar copia de seguridad total descargable en JSON
+  const handleExportFullBackup = () => {
+    const jsonStr = exportFullBackupFile({
+      obras,
+      visitas,
+      documentos,
+      fotos,
+      userRegistry: getUserRegistry(),
+      taxonomias,
+    });
+    downloadFile(
+      `GEOBRAS_CopiaSeguridad_Completa_${new Date().toISOString().split('T')[0]}.json`,
+      jsonStr,
+      'application/json;charset=utf-8'
+    );
+  };
+
+  // Restaurar base de datos completa desde archivo JSON
+  const handleImportFullBackup = (jsonContent: string) => {
+    try {
+      const parsed = JSON.parse(jsonContent);
+      if (!parsed || typeof parsed !== 'object') throw new Error('Formato no válido');
+
+      if (Array.isArray(parsed.obras)) {
+        setObras(parsed.obras);
+        persistDataSafely('geobras_obras_list', parsed.obras);
+      }
+      if (Array.isArray(parsed.visitas)) {
+        setVisitas(parsed.visitas);
+        persistDataSafely('geobras_visitas_list', parsed.visitas);
+      }
+      if (Array.isArray(parsed.documentos)) {
+        setDocumentos(parsed.documentos);
+        persistDataSafely('geobras_documentos_list', parsed.documentos);
+      }
+      if (Array.isArray(parsed.fotos)) {
+        setFotos(parsed.fotos);
+        persistDataSafely('geobras_fotos_list', parsed.fotos);
+      }
+      if (Array.isArray(parsed.userRegistry)) {
+        saveUserRegistry(parsed.userRegistry);
+        setUsers(getUserRegistry());
+      }
+      if (Array.isArray(parsed.taxonomias)) {
+        setTaxonomias(parsed.taxonomias);
+        persistDataSafely('geobras_taxonomias', parsed.taxonomias);
+      }
+
+      syncToCloud({
+        obras: parsed.obras,
+        visitas: parsed.visitas,
+        documentos: parsed.documentos,
+        fotos: parsed.fotos,
+        userRegistry: parsed.userRegistry,
+        taxonomias: parsed.taxonomias,
+      });
+
+      alert('Copia de seguridad restaurada y sincronizada con éxito.');
+    } catch (err) {
+      alert('El archivo seleccionado no contiene una copia de seguridad válida.');
+    }
   };
 
   // Limpiar toda la memoria caché y reiniciar datos a estado limpio
@@ -1030,6 +1219,9 @@ export default function HomePage() {
         onLogout={handleLogout}
         onClearCache={handleClearAllCacheAndData}
         currentUser={currentUser || undefined}
+        syncStatus={cloudSyncStatus}
+        onSyncNow={handleManualSync}
+        lastSyncTime={lastSyncTime}
       />
 
       {/* 2. Panel de Indicadores KPI (Visible ÚNICAMENTE en Escritorio para no estorbar en móviles) */}
@@ -2151,6 +2343,11 @@ export default function HomePage() {
           onToggleUserStatus={handleToggleUserStatus}
           permisosRoles={permisosRoles}
           onTogglePermiso={handleTogglePermiso}
+          onSyncNow={handleManualSync}
+          syncStatus={cloudSyncStatus}
+          lastSyncTime={lastSyncTime}
+          onExportFullBackup={handleExportFullBackup}
+          onImportFullBackup={handleImportFullBackup}
         />
       )}
 
